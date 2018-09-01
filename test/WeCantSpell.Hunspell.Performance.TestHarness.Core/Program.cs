@@ -51,7 +51,7 @@ namespace WeCantSpell.Hunspell.Performance.TestHarness.Core
 
             var hunspell = WordList.CreateFromFiles("files/English (American).dic");
             var words = ReadWords()
-                .Take(5000)
+                .Take(1000)
                 .ToList();
 
             foreach (var word in words)
