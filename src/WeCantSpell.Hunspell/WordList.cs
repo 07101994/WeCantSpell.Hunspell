@@ -75,7 +75,7 @@ namespace WeCantSpell.Hunspell
 
         public IEnumerable<string> RootWords => EntriesByRoot.Keys;
 
-        public bool HasEntries => EntriesByRoot.Count != 0;
+        public bool HasEntries => !EntriesByRoot.IsEmpty;
 
         public bool ContainsEntriesForRootWord(string rootWord) =>
             rootWord != null && EntriesByRoot.ContainsKey(rootWord);
@@ -85,7 +85,7 @@ namespace WeCantSpell.Hunspell
                 ? (WordEntryDetail[])FindEntryDetailsByRootWord(rootWord).Clone()
                 : ArrayEx<WordEntryDetail>.Empty;
 
-        private Dictionary<string, WordEntryDetail[]> EntriesByRoot { get; set; }
+        private StringTrie<WordEntryDetail[]> EntriesByRoot { get; set; }
 
         private FlagSet NGramRestrictedFlags { get; set; }
 

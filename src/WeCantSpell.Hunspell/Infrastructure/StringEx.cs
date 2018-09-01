@@ -130,6 +130,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder);
         }
 
+        public static string ConcatString(this string @this, char value)
+        {
+#if DEBUG
+            if (@this == null) throw new ArgumentNullException(nameof(@this));
+#endif
+
+            var builder = StringBuilderPool.Get(@this.Length + 1);
+            builder.Append(@this);
+            builder.Append(value);
+            return StringBuilderPool.GetStringAndReturn(builder);
+        }
+
 #if !NO_INLINE
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif

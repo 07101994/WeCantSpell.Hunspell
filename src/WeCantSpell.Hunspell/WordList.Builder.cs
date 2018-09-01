@@ -90,11 +90,11 @@ namespace WeCantSpell.Hunspell
 
                 if (EntryDetailsByRoot == null)
                 {
-                    result.EntriesByRoot = new Dictionary<string, WordEntryDetail[]>(0);
+                    result.EntriesByRoot = new StringTrie<WordEntryDetail[]>();
                 }
                 else
                 {
-                    result.EntriesByRoot = new Dictionary<string, WordEntryDetail[]>(EntryDetailsByRoot.Count);
+                    result.EntriesByRoot = new StringTrie<WordEntryDetail[]>();
                     foreach (var pair in EntryDetailsByRoot)
                     {
                         result.EntriesByRoot.Add(pair.Key, pair.Value.ToArray());
