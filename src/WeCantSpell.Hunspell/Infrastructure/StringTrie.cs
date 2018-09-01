@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace WeCantSpell.Hunspell.Infrastructure
 {
@@ -15,7 +14,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         private Node root;
 
-        public bool IsEmpty => !root.HasValue && root.Children.Count == 0;
+        public bool IsEmpty => !root.HasValue && !root.HasChildren;
 
         public TValue this[string key] => this[key.AsSpan()];
 
@@ -44,7 +43,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             .Select(x => new KeyValuePair<string, TValue>(x.Key, x.Value.Value))
             .GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         public bool ContainsKey(string key) => ContainsKey(key.AsSpan());
 
@@ -84,16 +83,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public void Add(ReadOnlySpan<char> key, TValue value)
         {
-            var exisingNode = FindNode(key);
-            if (exisingNode != null)
+            if (ContainsKey(key))
             {
-                if (exisingNode.HasValue)
-                {
-                    throw new ArgumentException("Key already added", nameof(key));
-                }
-
-                exisingNode.SetValue(value);
-                return;
+                throw new ArgumentException("Key already added", nameof(key));
             }
 
             Set(key, value);
@@ -146,31 +138,37 @@ namespace WeCantSpell.Hunspell.Infrastructure
                     yield return nodeAndKey;
                 }
 
-                if (nodeAndKey.Value.Children != null)
+                if (nodeAndKey.Value.HasChildren)
                 {
+                    var keyBuilder = StringBuilderPool.Get(nodeAndKey.Key, nodeAndKey.Key.Length + 1);
+                    keyBuilder.Append(default(char));
                     foreach (var child in nodeAndKey.Value.Children)
                     {
-                        searchQueue.Enqueue(new KeyValuePair<string, Node>(nodeAndKey.Key.ConcatString(child.Key), child.Value));
+                        keyBuilder[nodeAndKey.Key.Length] = child.Key;
+                        searchQueue.Enqueue(new KeyValuePair<string, Node>(keyBuilder.ToString(), child.Value));
                     }
+
+                    StringBuilderPool.Return(keyBuilder);
                 }
             }
         }
 
-        class Node
+        sealed class Node
         {
             public Dictionary<char, Node> Children;
             public TValue Value;
             public bool HasValue;
 
+            public bool HasChildren => Children != null && Children.Count != 0;
+
             public Node FindChild(char key)
             {
-                if (Children == null)
+                if (Children != null && Children.TryGetValue(key, out var child))
                 {
-                    return null;
+                    return child;
                 }
 
-                Children.TryGetValue(key, out var child);
-                return child;
+                return null;
             }
 
             public void SetValue(TValue value)
@@ -181,17 +179,20 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             public Node GetOrCreateChild(char key)
             {
-                if (Children.TryGetValue(key, out var child))
+                Node child;
+                if (Children != null)
                 {
-                    return child;
+                    if (Children.TryGetValue(key, out child))
+                    {
+                        return child;
+                    }
                 }
-
-                child = new Node();
-                if (Children == null)
+                else
                 {
                     Children = new Dictionary<char, Node>();
                 }
 
+                child = new Node();
                 Children[key] = child;
                 return child;
             }
