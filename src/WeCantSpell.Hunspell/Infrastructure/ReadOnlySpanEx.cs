@@ -17,6 +17,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return result;
         }
 
+        public static int IndexOf(this ReadOnlySpan<char> @this, ReadOnlySpan<char> value, int startIndex)
+        {
+            var result = @this.Slice(startIndex).IndexOf(value);
+            if (result >= 0)
+            {
+                result += startIndex;
+            }
+
+            return result;
+        }
+
         public static int IndexOfAny(this ReadOnlySpan<char> @this, char value0, char value1, int startIndex)
         {
             var result = @this.Slice(startIndex).IndexOfAny(value0, value1);
@@ -246,6 +257,29 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return new ReadOnlySpan<char>(chars);
         }
 
+        public static string Insert(this ReadOnlySpan<char> @this, int index, char value)
+        {
+            if (@this.IsEmpty && index == 0)
+            {
+                return value.ToString();
+            }
+
+            var builder = StringBuilderPool.Get(@this.Length + 1);
+            if (index > 0)
+            {
+                builder.Append(@this.Slice(0, index));
+            }
+
+            builder.Append(value);
+
+            if (index < @this.Length)
+            {
+                builder.Append(@this.Slice(index));
+            }
+
+            return StringBuilderPool.GetStringAndReturn(builder);
+        }
+
         public static ReadOnlySpan<char> Limit(this ReadOnlySpan<char> @this, int maxLength)
         {
 #if DEBUG
@@ -292,5 +326,36 @@ namespace WeCantSpell.Hunspell.Infrastructure
         }
 
         public static string ConcatString(this ReadOnlySpan<char> @this, char value) => @this.ConcatString(value.ToString());
+
+        public static string ConcatString(this ReadOnlySpan<char> @this, string str1, ReadOnlySpan<char> str2)
+        {
+#if DEBUG
+            if (str1 == null) throw new ArgumentNullException(nameof(str1));
+#endif
+            if (@this.IsEmpty && str2.IsEmpty)
+            {
+                return str1;
+            }
+
+            var builder = StringBuilderPool.Get(@this.Length + str1.Length + str2.Length);
+            builder.Append(@this);
+            builder.Append(str1);
+            builder.Append(str2);
+            return StringBuilderPool.GetStringAndReturn(builder);
+        }
+
+        public static string ConcatString(this ReadOnlySpan<char> @this, string str1, char char2, ReadOnlySpan<char> str3)
+        {
+#if DEBUG
+            if (str1 == null) throw new ArgumentNullException(nameof(str1));
+#endif
+
+            var builder = StringBuilderPool.Get(@this.Length + str1.Length + 1 + str3.Length);
+            builder.Append(@this);
+            builder.Append(str1);
+            builder.Append(char2);
+            builder.Append(str3);
+            return StringBuilderPool.GetStringAndReturn(builder);
+        }
     }
 }

@@ -77,8 +77,8 @@ namespace WeCantSpell.Hunspell
 
         public bool HasEntries => !EntriesByRoot.IsEmpty;
 
-        public bool ContainsEntriesForRootWord(string rootWord) =>
-            rootWord != null && EntriesByRoot.ContainsKey(rootWord);
+        public bool ContainsEntriesForRootWord(ReadOnlySpan<char> rootWord) =>
+            EntriesByRoot.ContainsKey(rootWord);
 
         public WordEntryDetail[] this[string rootWord] =>
             (rootWord != null)
@@ -96,19 +96,18 @@ namespace WeCantSpell.Hunspell
 
         private Dictionary<string, WordEntryDetail[]> NGramRestrictedDetails { get; set; }
 
-        public bool Check(string word) => new QueryCheck(word, this).Check();
+        public bool Check(string word) => new QueryCheck(this).Check(word);
 
-        public SpellCheckResult CheckDetails(string word) => new QueryCheck(word, this).CheckDetails();
+        public SpellCheckResult CheckDetails(ReadOnlySpan<char> word) => new QueryCheck(this).CheckDetails(word);
 
-        public IEnumerable<string> Suggest(string word) => new QuerySuggest(word, this).Suggest();
+        public SpellCheckResult CheckDetails(string word) => CheckDetails(word.AsSpan());
+
+        public IEnumerable<string> Suggest(string word) => new QuerySuggest(this).Suggest(word);
 
         internal WordEntry FindFirstEntryByRootWord(string rootWord)
         {
 #if DEBUG
-            if (rootWord == null)
-            {
-                throw new ArgumentNullException(nameof(rootWord));
-            }
+            if (rootWord == null) throw new ArgumentNullException(nameof(rootWord));
 #endif
             var details = FindEntryDetailsByRootWord(rootWord);
             return details.Length == 0
@@ -116,15 +115,24 @@ namespace WeCantSpell.Hunspell
                 : new WordEntry(rootWord, details[0]);
         }
 
+        internal WordEntry FindFirstEntryByRootWord(ReadOnlySpan<char> rootWord)
+        {
+            var details = FindEntryDetailsByRootWord(rootWord);
+            return details.Length == 0
+                ? null
+                : details[0].ToEntry(rootWord.ToString());
+        }
+
         internal WordEntryDetail[] FindEntryDetailsByRootWord(string rootWord)
         {
-#if DEBUG
-            if (rootWord == null)
-            {
-                throw new ArgumentNullException(nameof(rootWord));
-            }
-#endif
             return (rootWord == null || !EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details))
+                ? ArrayEx<WordEntryDetail>.Empty
+                : details;
+        }
+
+        internal WordEntryDetail[] FindEntryDetailsByRootWord(ReadOnlySpan<char> rootWord)
+        {
+            return !EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details)
                 ? ArrayEx<WordEntryDetail>.Empty
                 : details;
         }
@@ -132,12 +140,16 @@ namespace WeCantSpell.Hunspell
         internal WordEntryDetail FindFirstEntryDetailByRootWord(string rootWord)
         {
 #if DEBUG
-            if (rootWord == null)
-            {
-                throw new ArgumentNullException(nameof(rootWord));
-            }
+            if (rootWord == null) throw new ArgumentNullException(nameof(rootWord));
 #endif
 
+            return EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details) && details.Length != 0
+                ? details[0]
+                : null;
+        }
+
+        internal WordEntryDetail FindFirstEntryDetailByRootWord(ReadOnlySpan<char> rootWord)
+        {
             return EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details) && details.Length != 0
                 ? details[0]
                 : null;

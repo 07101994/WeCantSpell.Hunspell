@@ -8,35 +8,31 @@ namespace WeCantSpell.Hunspell
     {
         private sealed class QueryCheck : Query
         {
-            public QueryCheck(string word, WordList wordList)
-                : base(word, wordList)
+            public QueryCheck(WordList wordList)
+                : base(wordList)
             {
             }
 
-            public bool Check() => CheckDetails().Correct;
-
-            public SpellCheckResult CheckDetails()
+            public SpellCheckResult CheckDetails(ReadOnlySpan<char> word)
             {
-                var word = WordToCheck;
-
-                if (string.IsNullOrEmpty(word) || word.Length >= MaxWordUtf8Len || !WordList.HasEntries)
+                if (word.IsEmpty || word.Length >= MaxWordUtf8Len || !WordList.HasEntries)
                 {
                     return new SpellCheckResult(false);
                 }
-                if (word == DefaultXmlToken)
+                if (word.EqualsOrdinal(DefaultXmlToken.AsSpan()))
                 {
                     // Hunspell supports XML input of the simplified API (see manual)
                     return new SpellCheckResult(true);
                 }
 
                 // input conversion
-                if (!Affix.InputConversions.HasReplacements || !Affix.InputConversions.TryConvert(word, out string convertedWord))
+                if (!Affix.InputConversions.HasReplacements || !Affix.InputConversions.TryConvert(word, out ReadOnlySpan<char> convertedWord))
                 {
                     convertedWord = word;
                 }
 
                 var scw = CleanWord2(convertedWord, out CapitalizationType capType, out int abbv);
-                if (string.IsNullOrEmpty(scw))
+                if (scw.IsEmpty)
                 {
                     return new SpellCheckResult(false);
                 }
@@ -61,7 +57,7 @@ namespace WeCantSpell.Hunspell
                     rv = CheckWord(scw, ref resultType, out root);
                     if (abbv != 0 && rv == null)
                     {
-                        rv = CheckWord(scw + ".", ref resultType, out root);
+                        rv = CheckWord(scw.ConcatString('.').AsSpan(), ref resultType, out root);
                     }
                 }
                 else if (capType == CapitalizationType.All)
@@ -109,8 +105,8 @@ namespace WeCantSpell.Hunspell
                         var pLastIndex = breakEntry.Length - 1;
                         if (
                             breakEntry.StartsWith('^')
-                            && scw.AsSpan().Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan(1))
-                            && Check(scw.AsSpan(pLastIndex))
+                            && scw.Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan(1))
+                            && Check(scw.Slice(pLastIndex))
                         )
                         {
                             return new SpellCheckResult(root, resultType, true);
@@ -120,8 +116,8 @@ namespace WeCantSpell.Hunspell
                         {
                             var wlLessBreakIndex = scw.Length - breakEntry.Length + 1;
                             if (
-                                scw.AsSpan(wlLessBreakIndex).Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan().Limit(pLastIndex))
-                                && Check(scw.AsSpan(0, wlLessBreakIndex))
+                                scw.Slice(wlLessBreakIndex).Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan().Limit(pLastIndex))
+                                && Check(scw.Slice(0, wlLessBreakIndex))
                             )
                             {
                                 return new SpellCheckResult(root, resultType, true);
@@ -132,11 +128,11 @@ namespace WeCantSpell.Hunspell
                     // other patterns
                     foreach (var breakEntry in Affix.BreakPoints)
                     {
-                        var found = scw.IndexOf(breakEntry, StringComparison.Ordinal);
+                        var found = scw.IndexOf(breakEntry.AsSpan());
                         var remainingLength = scw.Length - breakEntry.Length;
                         if (found > 0 && found < remainingLength)
                         {
-                            var found2 = scw.IndexOf(breakEntry, found + 1, StringComparison.Ordinal);
+                            var found2 = scw.IndexOf(breakEntry.AsSpan(), found + 1);
                             // try to break at the second occurance
                             // to recognize dictionary words with wordbreak
                             if (found2 > 0 && (found2 < remainingLength))
@@ -144,13 +140,13 @@ namespace WeCantSpell.Hunspell
                                 found = found2;
                             }
 
-                            if (!Check(scw.AsSpan(found + breakEntry.Length)))
+                            if (!Check(scw.Slice(found + breakEntry.Length)))
                             {
                                 continue;
                             }
 
                             // examine 2 sides of the break point
-                            if (Check(scw.AsSpan(0, found)))
+                            if (Check(scw.Slice(0, found)))
                             {
                                 return new SpellCheckResult(root, resultType, true);
                             }
@@ -158,7 +154,7 @@ namespace WeCantSpell.Hunspell
                             // LANG_hu: spec. dash rule
                             if (Affix.IsHungarian && "-".Equals(breakEntry, StringComparison.Ordinal))
                             {
-                                if (Check(scw.AsSpan(0, found + 1)))
+                                if (Check(scw.Slice(0, found + 1)))
                                 {
                                     return new SpellCheckResult(root, resultType, true);
                                 }
@@ -169,17 +165,17 @@ namespace WeCantSpell.Hunspell
                     // other patterns (break at first break point)
                     foreach (var breakEntry in Affix.BreakPoints)
                     {
-                        var found = scw.IndexOf(breakEntry, StringComparison.Ordinal);
+                        var found = scw.IndexOf(breakEntry.AsSpan());
                         var remainingLength = scw.Length - breakEntry.Length;
                         if (found > 0 && found < remainingLength)
                         {
-                            if (!Check(scw.AsSpan(found + breakEntry.Length)))
+                            if (!Check(scw.Slice(found + breakEntry.Length)))
                             {
                                 continue;
                             }
 
                             // examine 2 sides of the break point
-                            if (Check(scw.AsSpan(0, found)))
+                            if (Check(scw.Slice(0, found)))
                             {
                                 return new SpellCheckResult(root, resultType, true);
                             }
@@ -187,7 +183,7 @@ namespace WeCantSpell.Hunspell
                             // LANG_hu: spec. dash rule
                             if (Affix.IsHungarian && "-".Equals(breakEntry, StringComparison.Ordinal))
                             {
-                                if (Check(scw.AsSpan(0, found + 1)))
+                                if (Check(scw.Slice(0, found + 1)))
                                 {
                                     return new SpellCheckResult(root, resultType, true);
                                 }
@@ -199,7 +195,7 @@ namespace WeCantSpell.Hunspell
                 return new SpellCheckResult(root, resultType, false);
             }
 
-            private WordEntry CheckDetailsAllCap(int abbv, ref string scw, ref SpellCheckResultType resultType, out string root)
+            private WordEntry CheckDetailsAllCap(int abbv, ref ReadOnlySpan<char> scw, ref SpellCheckResultType resultType, out string root)
             {
                 resultType |= SpellCheckResultType.OrigCap;
                 var rv = CheckWord(scw, ref resultType, out root);
@@ -210,7 +206,7 @@ namespace WeCantSpell.Hunspell
 
                 if (abbv != 0)
                 {
-                    rv = CheckWord(scw + ".", ref resultType, out root);
+                    rv = CheckWord(scw.ConcatString('.').AsSpan(), ref resultType, out root);
                     if (rv != null)
                     {
                         return rv;
@@ -223,19 +219,19 @@ namespace WeCantSpell.Hunspell
                 var apos = scw.IndexOf('\'');
                 if (apos >= 0)
                 {
-                    scw = HunspellTextFunctions.MakeAllSmall(scw, textInfo);
+                    scw = HunspellTextFunctions.MakeAllSmall(scw, Affix.Culture);
 
                     // conversion may result in string with different len than before MakeAllSmall2 so re-scan
                     if (apos < scw.Length - 1)
                     {
-                        scw = StringEx.ConcatString(scw, 0, apos + 1, HunspellTextFunctions.MakeInitCap(scw.AsSpan(apos + 1), textInfo));
+                        scw = scw.Slice(0, apos + 1).ConcatString(HunspellTextFunctions.MakeInitCap(scw.Slice(apos + 1), textInfo)).AsSpan();
                         rv = CheckWord(scw, ref resultType, out root);
                         if (rv != null)
                         {
                             return rv;
                         }
 
-                        scw = HunspellTextFunctions.MakeInitCap(scw, textInfo);
+                        scw = HunspellTextFunctions.MakeInitCap(scw, textInfo).AsSpan();
                         rv = CheckWord(scw, ref resultType, out root);
                         if (rv != null)
                         {
@@ -244,24 +240,24 @@ namespace WeCantSpell.Hunspell
                     }
                 }
 
-                if (Affix.CheckSharps && scw.Contains("SS"))
+                if (Affix.CheckSharps && scw.Contains("SS".AsSpan()))
                 {
-                    scw = HunspellTextFunctions.MakeAllSmall(scw, textInfo);
+                    scw = HunspellTextFunctions.MakeAllSmall(scw, Affix.Culture);
                     var u8buffer = scw;
                     rv = SpellSharps(ref u8buffer, ref resultType, out root);
                     if (rv == null)
                     {
-                        scw = HunspellTextFunctions.MakeInitCap(scw, textInfo);
+                        scw = HunspellTextFunctions.MakeInitCap(scw, textInfo).AsSpan();
                         rv = SpellSharps(ref scw, ref resultType, out root);
                     }
 
                     if (abbv != 0 && rv == null)
                     {
-                        u8buffer += ".";
+                        u8buffer = u8buffer.ConcatString('.').AsSpan();
                         rv = SpellSharps(ref u8buffer, ref resultType, out root);
                         if (rv == null)
                         {
-                            u8buffer = scw + ".";
+                            u8buffer = scw.ConcatString('.').AsSpan();
                             rv = SpellSharps(ref u8buffer, ref resultType, out root);
                         }
                     }
@@ -270,10 +266,10 @@ namespace WeCantSpell.Hunspell
                 return rv;
             }
 
-            private WordEntry CheckDetailsInitCap(int abbv, CapitalizationType capType, ref string scw, ref SpellCheckResultType resultType, out string root)
+            private WordEntry CheckDetailsInitCap(int abbv, CapitalizationType capType, ref ReadOnlySpan<char> scw, ref SpellCheckResultType resultType, out string root)
             {
-                var u8buffer = HunspellTextFunctions.MakeAllSmall(scw, TextInfo);
-                scw = HunspellTextFunctions.MakeInitCap(u8buffer, TextInfo);
+                ReadOnlySpan<char> u8buffer = HunspellTextFunctions.MakeAllSmall(scw, Affix.Culture);
+                scw = HunspellTextFunctions.MakeInitCap(u8buffer, TextInfo).AsSpan();
 
                 resultType |= SpellCheckResultType.OrigCap;
                 if (capType == CapitalizationType.Init)
@@ -312,11 +308,11 @@ namespace WeCantSpell.Hunspell
 
                 if (abbv != 0 && rv == null)
                 {
-                    u8buffer += ".";
+                    u8buffer = u8buffer.ConcatString('.').AsSpan();
                     rv = CheckWord(u8buffer, ref resultType, out root);
                     if (rv == null)
                     {
-                        u8buffer = scw + ".";
+                        u8buffer = scw.ConcatString('.').AsSpan();
                         if (capType == CapitalizationType.Init)
                         {
                             resultType |= SpellCheckResultType.InitCap;
@@ -360,21 +356,21 @@ namespace WeCantSpell.Hunspell
             /// <summary>
             /// Recursive search for right ss - sharp s permutations
             /// </summary>
-            private WordEntry SpellSharps(ref string @base, ref SpellCheckResultType info, out string root) =>
+            private WordEntry SpellSharps(ref ReadOnlySpan<char> @base, ref SpellCheckResultType info, out string root) =>
                 SpellSharps(ref @base, 0, 0, 0, ref info, out root);
 
             /// <summary>
             /// Recursive search for right ss - sharp s permutations
             /// </summary>
-            private WordEntry SpellSharps(ref string @base, int nPos, int n, int repNum, ref SpellCheckResultType info, out string root)
+            private WordEntry SpellSharps(ref ReadOnlySpan<char> @base, int nPos, int n, int repNum, ref SpellCheckResultType info, out string root)
             {
-                var pos = @base.IndexOf("ss", nPos, StringComparison.Ordinal);
+                var pos = @base.IndexOf("ss".AsSpan(), nPos);
                 if (pos >= 0 && n < MaxSharps)
                 {
-                    var baseBuilder = StringBuilderPool.Get(@base, @base.Length);
+                    var baseBuilder = StringBuilderPool.Get(@base);
                     baseBuilder[pos] = 'ß';
                     baseBuilder.Remove(pos + 1, 1);
-                    @base = baseBuilder.ToString();
+                    @base = baseBuilder.ToString().AsSpan();
 
                     var h = SpellSharps(ref @base, pos + 1, n + 1, repNum + 1, ref info, out root);
                     if (h != null)
@@ -386,7 +382,7 @@ namespace WeCantSpell.Hunspell
                     baseBuilder.Append(@base);
                     baseBuilder[pos] = 's';
                     baseBuilder.Insert(pos + 1, 's');
-                    @base = StringBuilderPool.GetStringAndReturn(baseBuilder);
+                    @base = StringBuilderPool.GetStringAndReturn(baseBuilder).AsSpan();
 
                     h = SpellSharps(ref @base, pos + 2, n + 1, repNum, ref info, out root);
                     if (h != null)

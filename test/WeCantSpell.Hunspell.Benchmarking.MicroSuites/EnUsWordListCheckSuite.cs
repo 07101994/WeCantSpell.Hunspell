@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using BenchmarkDotNet.Attributes;
 using WeCantSpell.Hunspell.Benchmarking.MicroSuites.Infrastructure;
 
@@ -19,7 +20,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
             WordData = CategorizedWordData.Create(
                 CategorizedWordData.GetAssortedEnUsWords(),
                 isCorrect: WordList.Check,
-                isRoot: WordList.ContainsEntriesForRootWord);
+                isRoot: w => WordList.ContainsEntriesForRootWord(w.AsSpan()));
         }
 
 

@@ -44,20 +44,26 @@ namespace WeCantSpell.Hunspell
 
         public bool TryGetValue(string key, out MultiReplacementEntry value) => replacements.TryGetValue(key, out value);
 
-        internal bool TryConvert(string text, out string converted)
+        internal bool TryConvert(ReadOnlySpan<char> text, out ReadOnlySpan<char> converted)
         {
-#if DEBUG
-            if (text == null)
+            if (text.Length == 0)
             {
-                throw new ArgumentNullException(nameof(text));
+                converted = text;
+                return false;
             }
-#endif
 
+            var appliedConversion = TryConvert(text, out string convertedString);
+            converted = convertedString.AsSpan();
+            return appliedConversion;
+        }
+
+        internal bool TryConvert(ReadOnlySpan<char> text, out string converted)
+        {
             var appliedConversion = false;
 
             if (text.Length == 0)
             {
-                converted = text;
+                converted = string.Empty;
             }
             else
             {
@@ -65,7 +71,7 @@ namespace WeCantSpell.Hunspell
 
                 for (var i = 0; i < text.Length; i++)
                 {
-                    var replacementEntry = FindLargestMatchingConversion(text.AsSpan(i));
+                    var replacementEntry = FindLargestMatchingConversion(text.Slice(i));
                     if (replacementEntry != null)
                     {
                         var replacementText = replacementEntry.ExtractReplacementText(text.Length - i, i == 0);

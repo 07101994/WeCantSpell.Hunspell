@@ -13,9 +13,8 @@ namespace WeCantSpell.Hunspell
     {
         private abstract class Query
         {
-            protected Query(string word, WordList wordList)
+            protected Query(WordList wordList)
             {
-                WordToCheck = word;
                 WordList = wordList;
                 Affix = wordList.Affix;
                 TextInfo = Affix.Culture.TextInfo;
@@ -46,8 +45,6 @@ namespace WeCantSpell.Hunspell
             protected const int TimeLimitCompoundCheckMs = 1000 / 20;
 
             protected const int TimeLimitGlobalMs = 1000 / 4;
-
-            public string WordToCheck { get; private set; }
 
             public WordList WordList { get; }
 
@@ -187,22 +184,25 @@ namespace WeCantSpell.Hunspell
             private bool HasSpecialInitCap(SpellCheckResultType info, WordEntryDetail he) =>
                 EnumEx.HasFlag(info, SpellCheckResultType.InitCap) && he.ContainsFlag(SpecialFlags.OnlyUpcaseFlag);
 
-            protected bool Check(string word) => new QueryCheck(word, WordList).Check();
+            public bool Check(string word) => Check(word.AsSpan());
 
-            protected bool Check(ReadOnlySpan<char> word) => new QueryCheck(word.ToString(), WordList).Check();
+            public bool Check(ReadOnlySpan<char> word) => new QueryCheck(WordList).CheckDetails(word).Correct;
 
-            protected WordEntry CheckWord(string word, ref SpellCheckResultType info, out string root)
+            protected WordEntry CheckWord(string word, ref SpellCheckResultType info, out string root) =>
+                CheckWord(word.AsSpan(), ref info, out root);
+
+            protected WordEntry CheckWord(ReadOnlySpan<char> word, ref SpellCheckResultType info, out string root)
             {
                 root = null;
 
-                if (string.IsNullOrEmpty(word))
+                if (word.IsEmpty)
                 {
                     return null;
                 }
 
                 if (Affix.IgnoredChars.HasItems)
                 {
-                    word = word.RemoveChars(Affix.IgnoredChars);
+                    word = word.Remove(Affix.IgnoredChars);
 
                     if (word.Length == 0)
                     {
@@ -213,7 +213,7 @@ namespace WeCantSpell.Hunspell
                 // word reversing wrapper for complex prefixes
                 if (Affix.ComplexPrefixes)
                 {
-                    word = word.Reverse();
+                    word = word.Reversed();
                 }
 
                 // look word in hash table
@@ -260,7 +260,7 @@ namespace WeCantSpell.Hunspell
 
                     if (heIndex < details.Length)
                     {
-                        return new WordEntry(word, heDetails);
+                        return heDetails.ToEntry(word.ToString());
                     }
                 }
 
@@ -302,12 +302,12 @@ namespace WeCantSpell.Hunspell
                 {
                     // try check compound word
                     var rwords = new IncrementalWordList();
-                    he = CompoundCheck(word.AsSpan(), 0, 0, 100, null, rwords, false, 0, ref info);
+                    he = CompoundCheck(word, 0, 0, 100, null, rwords, false, 0, ref info);
 
                     if (he == null && word.EndsWith('-') && Affix.IsHungarian)
                     {
                         // LANG_hu section: `moving rule' with last dash
-                        he = CompoundCheck(word.AsSpan(0, word.Length - 1), -5, 0, 100, null, rwords, true, 0, ref info);
+                        he = CompoundCheck(word.Slice(0, word.Length - 1), -5, 0, 100, null, rwords, true, 0, ref info);
                     }
 
                     if (he != null)
@@ -1402,7 +1402,7 @@ namespace WeCantSpell.Hunspell
                         )
                         {
                             // check prefix
-                            rv = CheckWordPrefix(Affix<PrefixEntry>.Create(pe, peGroup), word, inCompound, needFlag);
+                            rv = CheckWordPrefix(Affix<PrefixEntry>.Create(pe, peGroup), word.AsSpan(), inCompound, needFlag);
                             if (rv != null)
                             {
                                 SetPrefix(pe);
@@ -1424,7 +1424,7 @@ namespace WeCantSpell.Hunspell
                     )
                     {
                         // check prefix
-                        rv = CheckWordPrefix(pptr, word, inCompound, needFlag);
+                        rv = CheckWordPrefix(pptr, word.AsSpan(), inCompound, needFlag);
                         if (rv != null)
                         {
                             SetPrefix(pptr.Entry);
@@ -1751,12 +1751,27 @@ namespace WeCantSpell.Hunspell
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
+            protected WordEntry LookupFirst(ReadOnlySpan<char> word) => WordList.FindFirstEntryByRootWord(word);
+
+#if !NO_INLINE
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
             protected WordEntryDetail[] LookupDetails(string word) => WordList.FindEntryDetailsByRootWord(word);
 
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
+            protected WordEntryDetail[] LookupDetails(ReadOnlySpan<char> word) => WordList.FindEntryDetailsByRootWord(word);
+
+#if !NO_INLINE
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
             protected WordEntryDetail LookupFirstDetail(string word) => WordList.FindFirstEntryDetailByRootWord(word);
+
+#if !NO_INLINE
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+            protected WordEntryDetail LookupFirstDetail(ReadOnlySpan<char> word) => WordList.FindFirstEntryDetailByRootWord(word);
 
             /// <summary>
             /// Compound check patterns.
@@ -1905,7 +1920,7 @@ namespace WeCantSpell.Hunspell
                 return false;
             }
 
-            private WordEntry CheckWordPrefix(Affix<PrefixEntry> affix, string word, CompoundOptions inCompound, FlagValue needFlag)
+            private WordEntry CheckWordPrefix(Affix<PrefixEntry> affix, ReadOnlySpan<char> word, CompoundOptions inCompound, FlagValue needFlag)
             {
                 // on entry prefix is 0 length or already matches the beginning of the word.
                 // So if the remaining root word has positive length
@@ -1921,7 +1936,7 @@ namespace WeCantSpell.Hunspell
                     // generate new root word by removing prefix and adding
                     // back any characters that would have been stripped
 
-                    var tmpword = StringEx.ConcatString(entry.Strip, word, appendLength, word.Length - appendLength);
+                    var tmpword = entry.Strip.AsSpan().ConcatString(word.Slice(appendLength, word.Length - appendLength));
 
                     // now make sure all of the conditions on characters
                     // are met.  Please see the appendix at the end of
@@ -2129,7 +2144,7 @@ namespace WeCantSpell.Hunspell
             }
 
             private bool CandidateCheck(string word) =>
-                WordList.ContainsEntriesForRootWord(word) || AffixCheck(word, default, CompoundOptions.Not) != null;
+                WordList.ContainsEntriesForRootWord(word.AsSpan()) || AffixCheck(word, default, CompoundOptions.Not) != null;
 
             /// <summary>
             /// Make a copy of <paramref name="src"/> and returns it
@@ -2146,7 +2161,7 @@ namespace WeCantSpell.Hunspell
             /// set the capitalization type (<paramref name="capType"/>) and
             /// return the length of the "cleaned" (and UTF-8 encoded) word
             /// </remarks>
-            protected string CleanWord2(string src, out CapitalizationType capType, out int abbv)
+            protected ReadOnlySpan<char> CleanWord2(ReadOnlySpan<char> src, out CapitalizationType capType, out int abbv)
             {
                 // first skip over any leading blanks
                 var qIndex = HunspellTextFunctions.CountMatchingFromLeft(src, ' ');
@@ -2159,12 +2174,12 @@ namespace WeCantSpell.Hunspell
                 {
                     // if no characters are left it can't be capitalized
                     capType = CapitalizationType.None;
-                    return string.Empty;
+                    return ReadOnlySpan<char>.Empty;
                 }
 
-                var dest = src.AsSpan(qIndex, nl);
+                var dest = src.Slice(qIndex, nl);
                 capType = HunspellTextFunctions.GetCapitalizationType(dest, TextInfo);
-                return dest.ToString();
+                return dest;
             }
 
             protected enum CompoundOptions : byte

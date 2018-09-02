@@ -69,7 +69,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return true;
         }
 
-        public static bool IsNumericWord(string word)
+        public static bool IsNumericWord(ReadOnlySpan<char> word)
         {
             byte state = 0; // 0 = begin, 1 = number, 2 = separator
             for (var i = 0; i < word.Length; i++)
@@ -97,7 +97,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return state == 1;
         }
 
-        public static int CountMatchingFromLeft(string text, char character)
+        public static int CountMatchingFromLeft(ReadOnlySpan<char> text, char character)
         {
             var count = 0;
             for (; count < text.Length && text[count] == character; count++) ;
@@ -105,7 +105,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return count;
         }
 
-        public static int CountMatchingFromRight(string text, char character)
+        public static int CountMatchingFromRight(ReadOnlySpan<char> text, char character)
         {
             var lastIndex = text.Length - 1;
             var searchIndex = lastIndex;
@@ -232,7 +232,20 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return textInfo.ToLower(s);
         }
 
-        public static string MakeInitSmall(string s, TextInfo textInfo)
+        /// <summary>
+        /// Convert to all little.
+        /// </summary>
+        public static Span<char> MakeAllSmall(ReadOnlySpan<char> s, CultureInfo culture)
+        {
+#if DEBUG
+            if (culture == null) throw new ArgumentNullException(nameof(culture));
+#endif
+            var buffer = new char[s.Length].AsSpan();
+            s.ToLower(buffer, culture);
+            return buffer;
+        }
+
+        public static string MakeInitSmall(ReadOnlySpan<char> s, TextInfo textInfo)
         {
 #if DEBUG
             if (s == null) throw new ArgumentNullException(nameof(s));
@@ -241,14 +254,14 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             if (s.Length == 0)
             {
-                return s;
+                return string.Empty;
             }
 
             var actualFirstLetter = s[0];
             var expectedFirstLetter = textInfo.ToLower(actualFirstLetter);
             if (expectedFirstLetter == actualFirstLetter)
             {
-                return s;
+                return s.ToString();
             }
 
             if (s.Length == 1)
@@ -268,6 +281,16 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (textInfo == null) throw new ArgumentNullException(nameof(textInfo));
 #endif
             return textInfo.ToUpper(s);
+        }
+
+        public static Span<char> MakeAllCap(ReadOnlySpan<char> s, CultureInfo culture)
+        {
+#if DEBUG
+            if (culture == null) throw new ArgumentNullException(nameof(culture));
+#endif
+            var buffer = new char[s.Length].AsSpan();
+            s.ToUpper(buffer, culture);
+            return buffer;
         }
 
         public static ReadOnlySpan<char> MakeTitleCase(ReadOnlySpan<char> s, CultureInfo cultureInfo)

@@ -23,16 +23,16 @@ namespace WeCantSpell.Hunspell
         /// <summary>
         /// Calculate break points for recursion limit.
         /// </summary>
-        internal int FindRecursionLimit(string scw)
+        internal int FindRecursionLimit(ReadOnlySpan<char> scw)
         {
             int nbr = 0;
 
-            if (!string.IsNullOrEmpty(scw))
+            if (!scw.IsEmpty)
             {
                 foreach (var breakEntry in items)
                 {
                     int pos = 0;
-                    while ((pos = scw.IndexOf(breakEntry, pos, StringComparison.Ordinal)) >= 0)
+                    while ((pos = scw.IndexOf(breakEntry.AsSpan(), pos)) >= 0)
                     {
                         nbr++;
                         pos += breakEntry.Length;
