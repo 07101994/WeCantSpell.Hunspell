@@ -78,6 +78,9 @@ namespace WeCantSpell.Hunspell
 
         public bool HasEntries => !EntriesByRoot.IsEmpty;
 
+        public bool ContainsEntriesForRootWord(string rootWord) =>
+            EntriesByRoot.ContainsKey(rootWord);
+
         public bool ContainsEntriesForRootWord(ReadOnlySpan<char> rootWord) =>
             EntriesByRoot.ContainsKey(rootWord);
 
@@ -96,6 +99,8 @@ namespace WeCantSpell.Hunspell
         private Dictionary<string, WordEntryDetail[]> NGramRestrictedDetails { get; set; }
 
         public bool Check(string word) => new QueryCheck(this).Check(word);
+
+        public bool Check(ReadOnlySpan<char> word) => new QueryCheck(this).Check(word);
 
         public SpellCheckResult CheckDetails(ReadOnlySpan<char> word) => new QueryCheck(this).CheckDetails(word);
 

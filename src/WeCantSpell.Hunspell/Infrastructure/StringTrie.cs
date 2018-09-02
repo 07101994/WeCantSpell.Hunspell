@@ -327,6 +327,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             public bool HasChildren => Children != null && Children.Count != 0;
 
+            public char KeyValue => KeySequence.Span.LastOrDefault();
+
             public Node FindChild(char key)
             {
                 if (Children != null && Children.TryGetValue(key, out var child))

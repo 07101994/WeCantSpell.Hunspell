@@ -6,6 +6,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
     {
         public delegate bool SplitPartHandler(ReadOnlySpan<char> part, int index);
 
+        public static char LastOrDefault(this ReadOnlySpan<char> @this) =>
+            @this.IsEmpty ? default : @this[@this.Length - 1];
+
         public static int IndexOf(this ReadOnlySpan<char> @this, char value, int startIndex)
         {
             var result = @this.Slice(startIndex).IndexOf(value);
