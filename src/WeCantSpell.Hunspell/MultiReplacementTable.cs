@@ -48,16 +48,29 @@ namespace WeCantSpell.Hunspell
         {
             if (text.Length == 0)
             {
-                converted = text;
+                converted = ReadOnlySpan<char>.Empty;
                 return false;
             }
 
-            var appliedConversion = TryConvert(text, out string convertedString);
-            converted = convertedString.AsSpan();
+            var appliedConversion = TryConvert_Internal(text, out string convertedString);
+            converted = appliedConversion ? convertedString.AsSpan() : text;
             return appliedConversion;
         }
 
         internal bool TryConvert(ReadOnlySpan<char> text, out string converted)
+        {
+            if (text.Length == 0)
+            {
+                converted = string.Empty;
+                return false;
+            }
+
+            var appliedConversion = TryConvert_Internal(text, out string convertedString);
+            converted = appliedConversion ? convertedString : text.ToString();
+            return appliedConversion;
+        }
+
+        internal bool TryConvert_Internal(ReadOnlySpan<char> text, out string converted)
         {
             var appliedConversion = false;
 
@@ -87,7 +100,15 @@ namespace WeCantSpell.Hunspell
                     convertedBuilder.Append(text[i]);
                 }
 
-                converted = StringBuilderPool.GetStringAndReturn(convertedBuilder);
+                if (appliedConversion)
+                {
+                    converted = StringBuilderPool.GetStringAndReturn(convertedBuilder);
+                }
+                else
+                {
+                    converted = string.Empty;
+                    StringBuilderPool.Return(convertedBuilder);
+                }
             }
 
             return appliedConversion;
