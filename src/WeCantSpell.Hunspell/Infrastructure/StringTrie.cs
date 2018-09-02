@@ -5,24 +5,27 @@ using System.Linq;
 
 namespace WeCantSpell.Hunspell.Infrastructure
 {
-    public class StringTrie<TValue> : IEnumerable<KeyValuePair<string, TValue>>
+    public class StringTrie<TValue> : IEnumerable<KeyValuePair<ReadOnlyMemory<char>, TValue>>
     {
         public StringTrie()
         {
-            root = new Node();
+            root = new Node
+            {
+                KeySequence = ReadOnlyMemory<char>.Empty
+            };
         }
 
         private Node root;
 
         public bool IsEmpty => !root.HasValue && !root.HasChildren;
 
-        public TValue this[string key] => this[key.AsSpan()];
+        public TValue this[string key] => this[key.AsMemory()];
 
-        public TValue this[ReadOnlySpan<char> key]
+        public TValue this[ReadOnlyMemory<char> key]
         {
             get
             {
-                if (TryGetValue(key, out var value))
+                if (TryGetValue(key.Span, out var value))
                 {
                     return value;
                 }
@@ -35,12 +38,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-        public IEnumerable<string> Keys => GetAllNodes().Select(x => x.Key);
+        public IEnumerable<ReadOnlyMemory<char>> Keys => GetAllNodes().Select(x => x.KeySequence);
 
-        public IEnumerable<TValue> Values => GetAllNodes().Select(x => x.Value.Value);
+        public IEnumerable<TValue> Values => GetAllNodes().Select(x => x.Value);
 
-        public IEnumerator<KeyValuePair<string, TValue>> GetEnumerator() => GetAllNodes()
-            .Select(x => new KeyValuePair<string, TValue>(x.Key, x.Value.Value))
+        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator() => GetAllNodes()
+            .Select(n => new KeyValuePair<ReadOnlyMemory<char>, TValue>(n.KeySequence, n.Value))
             .GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -78,12 +81,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public void Add(string key, TValue value)
         {
-            Add(key.AsSpan(), value);
+            Add(key.AsMemory(), value);
         }
 
-        public void Add(ReadOnlySpan<char> key, TValue value)
+        public void Add(ReadOnlyMemory<char> key, TValue value)
         {
-            if (ContainsKey(key))
+            if (ContainsKey(key.Span))
             {
                 throw new ArgumentException("Key already added", nameof(key));
             }
@@ -93,16 +96,31 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         void Set(string key, TValue value)
         {
-            Set(key.AsSpan(), value);
+            Set(key.AsMemory(), value);
         }
 
-        void Set(ReadOnlySpan<char> key, TValue value)
+        void Set(ReadOnlyMemory<char> key, TValue value)
         {
             var node = root;
             int searchKeyIndex = 0;
             for (; searchKeyIndex < key.Length; searchKeyIndex++)
             {
-                node = node.GetOrCreateChild(key[searchKeyIndex]);
+                var keySlice = key.Slice(0, searchKeyIndex + 1);
+                ref readonly var keyValue = ref key.Span[searchKeyIndex];
+                var childNode = node.GetChildOrDefault(keyValue);
+
+                // TODO: see if keyslice can overwrite some smaller matching slices to save memory
+
+                if (childNode == null)
+                {
+                    childNode = new Node
+                    {
+                        KeySequence = keySlice
+                    };
+                    node.AddChild(keyValue, childNode);
+                }
+
+                node = childNode;
             }
 
             node.SetValue(value);
@@ -124,37 +142,33 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return node;
         }
 
-        IEnumerable<KeyValuePair<string, Node>> GetAllNodes()
+        IEnumerable<Node> GetAllNodes()
         {
-            var searchQueue = new Queue<KeyValuePair<string, Node>>();
-            searchQueue.Enqueue(new KeyValuePair<string, Node>(string.Empty, root));
+            var searchQueue = new Queue<Node>();
+            searchQueue.Enqueue(root);
 
             while (searchQueue.Count != 0)
             {
-                var nodeAndKey = searchQueue.Dequeue();
+                var node = searchQueue.Dequeue();
 
-                if (nodeAndKey.Value.HasValue)
+                if (node.HasValue)
                 {
-                    yield return nodeAndKey;
+                    yield return node;
                 }
 
-                if (nodeAndKey.Value.HasChildren)
+                if (node.HasChildren)
                 {
-                    var keyBuilder = StringBuilderPool.Get(nodeAndKey.Key, nodeAndKey.Key.Length + 1);
-                    keyBuilder.Append(default(char));
-                    foreach (var child in nodeAndKey.Value.Children)
+                    foreach (var childNode in node.Children.Values)
                     {
-                        keyBuilder[nodeAndKey.Key.Length] = child.Key;
-                        searchQueue.Enqueue(new KeyValuePair<string, Node>(keyBuilder.ToString(), child.Value));
+                        searchQueue.Enqueue(childNode);
                     }
-
-                    StringBuilderPool.Return(keyBuilder);
                 }
             }
         }
 
         sealed class Node
         {
+            public ReadOnlyMemory<char> KeySequence;
             public Dictionary<char, Node> Children;
             public TValue Value;
             public bool HasValue;
@@ -177,17 +191,31 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 HasValue = true;
             }
 
+            public Node GetChildOrDefault(char key)
+            {
+                if (Children != null && Children.TryGetValue(key, out var child))
+                {
+                    return child;
+                }
+
+                return null;
+            }
+
+            public void AddChild(char key, Node childNode)
+            {
+                if (Children == null)
+                {
+                    Children = new Dictionary<char, Node>();
+                }
+
+                Children[key] = childNode;
+            }
+
             public Node GetOrCreateChild(char key)
             {
-                Node child;
-                if (Children != null)
-                {
-                    if (Children.TryGetValue(key, out child))
-                    {
-                        return child;
-                    }
-                }
-                else
+                Node child = GetChildOrDefault(key);
+
+                if (Children == null)
                 {
                     Children = new Dictionary<char, Node>();
                 }

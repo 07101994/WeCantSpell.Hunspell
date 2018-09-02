@@ -73,7 +73,7 @@ namespace WeCantSpell.Hunspell
 
         public SingleReplacementSet AllReplacements { get; private set; }
 
-        public IEnumerable<string> RootWords => EntriesByRoot.Keys;
+        public IEnumerable<string> RootWords => EntriesByRoot.Keys.Select(k => k.ToString());
 
         public bool HasEntries => !EntriesByRoot.IsEmpty;
 
@@ -89,7 +89,7 @@ namespace WeCantSpell.Hunspell
 
         private FlagSet NGramRestrictedFlags { get; set; }
 
-        private IEnumerable<KeyValuePair<string, WordEntryDetail[]>> GetNGramAllowedDetails(Func<string, bool> rootFilter) =>
+        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetNGramAllowedDetails(Func<ReadOnlyMemory<char>, bool> rootFilter) =>
             (NGramRestrictedDetails == null || NGramRestrictedDetails.Count == 0)
             ? EntriesByRoot.Where(set => rootFilter(set.Key))
             : GetAllNGramAllowedEntries(rootFilter);
@@ -155,12 +155,12 @@ namespace WeCantSpell.Hunspell
                 : null;
         }
 
-        private IEnumerable<KeyValuePair<string, WordEntryDetail[]>> GetAllNGramAllowedEntries(Func<string, bool> rootFilter) =>
+        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllNGramAllowedEntries(Func<ReadOnlyMemory<char>, bool> rootFilter) =>
             EntriesByRoot
             .Where(rootPair => rootFilter(rootPair.Key))
             .Select(rootPair =>
             {
-                if (NGramRestrictedDetails.TryGetValue(rootPair.Key, out WordEntryDetail[] restrictedDetails))
+                if (NGramRestrictedDetails.TryGetValue(rootPair.Key.ToString(), out WordEntryDetail[] restrictedDetails))
                 {
                     WordEntryDetail[] filteredValues;
                     if (restrictedDetails.Length == 0)
@@ -176,7 +176,7 @@ namespace WeCantSpell.Hunspell
                         filteredValues = rootPair.Value.Where(d => !restrictedDetails.Contains(d)).ToArray();
                     }
 
-                    return new KeyValuePair<string, WordEntryDetail[]>(rootPair.Key, filteredValues);
+                    return new KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>(rootPair.Key, filteredValues);
                 }
 
                 return rootPair;

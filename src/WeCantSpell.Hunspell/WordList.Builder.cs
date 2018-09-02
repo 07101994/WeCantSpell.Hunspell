@@ -140,7 +140,7 @@ namespace WeCantSpell.Hunspell
 
                     if (details != null)
                     {
-                        result.NGramRestrictedDetails.Add(rootSet.Key, details.ToArray());
+                        result.NGramRestrictedDetails.Add(rootSet.Key.ToString(), details.ToArray());
                     }
                 }
 
