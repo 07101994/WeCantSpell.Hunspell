@@ -1282,13 +1282,7 @@ namespace WeCantSpell.Hunspell
             /// <summary>
             /// Generate a set of suggestions for very poorly spelled words.
             /// </summary>
-            private void NGramSuggest(List<string> wlst, ReadOnlySpan<char> word, CapitalizationType capType) =>
-                NGramSuggest(wlst, word.ToString(), capType);
-
-            /// <summary>
-            /// Generate a set of suggestions for very poorly spelled words.
-            /// </summary>
-            private void NGramSuggest(List<string> wlst, string word, CapitalizationType capType)
+            private void NGramSuggest(List<string> wlst, ReadOnlySpan<char> word, CapitalizationType capType)
             {
                 int lval;
                 int sc;
@@ -1307,14 +1301,14 @@ namespace WeCantSpell.Hunspell
                 // word reversing wrapper for complex prefixes
                 if (Affix.ComplexPrefixes)
                 {
-                    word = word.Reverse();
+                    word = word.Reversed();
                 }
 
                 var hasPhoneEntries = Affix.Phone.HasItems;
                 var textInfo = TextInfo;
                 var target = hasPhoneEntries
-                    ? Phonet(HunspellTextFunctions.MakeAllCap(word, textInfo).AsSpan()).AsSpan()
-                    : ReadOnlySpan<char>.Empty;
+                    ? Phonet(HunspellTextFunctions.MakeAllCap(word, Affix.Culture))
+                    : string.Empty;
                 var isNonGermanLowercase = !Affix.IsGerman && capType == CapitalizationType.None;
 
                 var minAllowedLength = Math.Max(word.Length - 4, 0);
@@ -1342,15 +1336,14 @@ namespace WeCantSpell.Hunspell
                             continue;
                         }
 
-                        sc = NGram(3, word.AsSpan(), hpSet.Key.Span, NGramOptions.LongerWorse | NGramOptions.Lowering)
-                            + LeftCommonSubstring(word.AsSpan(), hpSet.Key.Span);
+                        sc = NGram(3, word, hpSet.Key.Span, NGramOptions.LongerWorse | NGramOptions.Lowering)
+                            + LeftCommonSubstring(word, hpSet.Key.Span);
 
                         // check special pronunciation
-                        var f = string.Empty;
-                        if (EnumEx.HasFlag(hpDetail.Options, WordEntryOptions.Phon) && CopyField(ref f, hpDetail.Morphs, MorphologicalTags.Phon))
+                        if (EnumEx.HasFlag(hpDetail.Options, WordEntryOptions.Phon) && CopyField(out var f, hpDetail.Morphs, MorphologicalTags.Phon))
                         {
-                            var sc2 = NGram(3, word.AsSpan(), f.AsSpan(), NGramOptions.LongerWorse | NGramOptions.Lowering)
-                                + LeftCommonSubstring(word.AsSpan(), f.AsSpan());
+                            var sc2 = NGram(3, word, f.Span, NGramOptions.LongerWorse | NGramOptions.Lowering)
+                                + LeftCommonSubstring(word, f.Span);
 
                             if (sc2 > sc)
                             {
@@ -1361,7 +1354,7 @@ namespace WeCantSpell.Hunspell
                         var scphon = -20000;
                         if (hasPhoneEntries && sc > 2 && wordKeyLengthDifference <= 3)
                         {
-                            scphon = NGram(3, target, Phonet(HunspellTextFunctions.MakeAllCap(hpSet.Key.Span, Affix.Culture)).AsSpan(), NGramOptions.LongerWorse) * 2;
+                            scphon = NGram(3, target.AsSpan(), Phonet(HunspellTextFunctions.MakeAllCap(hpSet.Key.Span, Affix.Culture)).AsSpan(), NGramOptions.LongerWorse) * 2;
                         }
 
                         if (sc > roots[lp].Score)
@@ -1400,21 +1393,18 @@ namespace WeCantSpell.Hunspell
                 // mangle original word three differnt ways
                 // and score them to generate a minimum acceptable score
                 var thresh = 0;
-                var mw = StringBuilderPool.Get(word.Length);
+                var mw = new char[word.Length].AsSpan();
                 for (var sp = 1; sp < 4; sp++)
                 {
-                    mw.Clear();
-                    mw.Append(word);
+                    word.CopyTo(mw);
 
                     for (var k = sp; k < mw.Length; k += 4)
                     {
                         mw[k] = '*';
                     }
 
-                    thresh += NGram(word.Length, word.AsSpan(), mw.ToString().AsSpan(), NGramOptions.AnyMismatch | NGramOptions.Lowering);
+                    thresh += NGram(word.Length, word, mw, NGramOptions.AnyMismatch | NGramOptions.Lowering);
                 }
-
-                StringBuilderPool.Return(mw);
 
                 thresh = (thresh / 3) - 1;
 
@@ -1435,8 +1425,7 @@ namespace WeCantSpell.Hunspell
                     var rp = roots[i].Root;
                     if (rp != null)
                     {
-                        var field = string.Empty;
-                        if (!EnumEx.HasFlag(rp.Detail.Options, WordEntryOptions.Phon) || !CopyField(ref field, rp.Detail.Morphs, MorphologicalTags.Phon))
+                        if (!EnumEx.HasFlag(rp.Detail.Options, WordEntryOptions.Phon) || !CopyField(out var field, rp.Detail.Morphs, MorphologicalTags.Phon))
                         {
                             field = null;
                         }
@@ -1446,8 +1435,8 @@ namespace WeCantSpell.Hunspell
                         for (var k = 0; k < nw; k++)
                         {
                             ref var guessWordK = ref glst[k];
-                            sc = NGram(word.Length, word.AsSpan(), guessWordK.Word.Span, NGramOptions.AnyMismatch | NGramOptions.Lowering)
-                                + LeftCommonSubstring(word.AsSpan(), guessWordK.Word.Span);
+                            sc = NGram(word.Length, word, guessWordK.Word.Span, NGramOptions.AnyMismatch | NGramOptions.Lowering)
+                                + LeftCommonSubstring(word, guessWordK.Word.Span);
 
                             if (sc > thresh)
                             {
@@ -1512,7 +1501,7 @@ namespace WeCantSpell.Hunspell
                         var gl = HunspellTextFunctions.MakeAllSmall(guess.Guess.Span, Affix.Culture);
                         var len = guess.Guess.Length;
 
-                        var lcsLength = LcsLen(word.AsSpan(), gl);
+                        var lcsLength = LcsLen(word, gl);
 
                         // same characters with different casing
                         if (word.Length == len && word.Length == lcsLength)
@@ -1522,20 +1511,20 @@ namespace WeCantSpell.Hunspell
                         }
 
                         // using 2-gram instead of 3, and other weightening
-                        var re = NGram(2, word.AsSpan(), gl, NGramOptions.AnyMismatch | NGramOptions.Weighted | NGramOptions.Lowering)
-                            + NGram(2, gl, word.AsSpan(), NGramOptions.AnyMismatch | NGramOptions.Weighted | NGramOptions.Lowering);
+                        var re = NGram(2, word, gl, NGramOptions.AnyMismatch | NGramOptions.Weighted | NGramOptions.Lowering)
+                            + NGram(2, gl, word, NGramOptions.AnyMismatch | NGramOptions.Weighted | NGramOptions.Lowering);
 
                         guesses[i].Score =
                             // length of longest common subsequent minus length difference
                             (2 * lcsLength) - Math.Abs(word.Length - len)
                             // weight length of the left common substring
-                            + LeftCommonSubstring(word.AsSpan(), gl)
+                            + LeftCommonSubstring(word, gl)
                             // weight equal character positions
-                            + ((CommonCharacterPositions(word.AsSpan(), gl, ref isSwap) != 0) ? 1 : 0)
+                            + ((CommonCharacterPositions(word, gl, ref isSwap) != 0) ? 1 : 0)
                             // swap character (not neighboring)
                             + (isSwap ? 10 : 0)
                             // ngram
-                            + NGram(4, word.AsSpan(), gl, NGramOptions.AnyMismatch | NGramOptions.Lowering)
+                            + NGram(4, word, gl, NGramOptions.AnyMismatch | NGramOptions.Lowering)
                             // weighted ngrams
                             + re
                             // different limit for dictionaries with PHONE rules
@@ -1558,9 +1547,9 @@ namespace WeCantSpell.Hunspell
                             var len = root.RootPhon.Length;
 
                             // heuristic weigthing of ngram scores
-                            roots[i].ScorePhone += 2 * LcsLen(word.AsSpan(), gl) - Math.Abs(word.Length - len)
+                            roots[i].ScorePhone += 2 * LcsLen(word, gl) - Math.Abs(word.Length - len)
                                 // weight length of the left common substring
-                                + LeftCommonSubstring(word.AsSpan(), gl);
+                                + LeftCommonSubstring(word, gl);
                         }
                     }
 
@@ -1797,7 +1786,7 @@ namespace WeCantSpell.Hunspell
                 }
             }
 
-            private int ExpandRootWord(GuessWord[] wlst, WordEntry entry, string bad, string phon)
+            private int ExpandRootWord(GuessWord[] wlst, WordEntry entry, ReadOnlySpan<char> bad, ReadOnlyMemory<char> phon)
             {
                 var nh = 0;
                 // first add root word to list
@@ -1814,9 +1803,9 @@ namespace WeCantSpell.Hunspell
                     nh++;
 
                     // add special phonetic version
-                    if (phon != null && nh < wlst.Length)
+                    if (!phon.IsEmpty && nh < wlst.Length)
                     {
-                        wlst[nh].Word = phon.AsMemory();
+                        wlst[nh].Word = phon;
                         if (wlst[nh].Word.IsEmpty)
                         {
                             return nh - 1;
@@ -1848,7 +1837,7 @@ namespace WeCantSpell.Hunspell
                                     (
                                         bad.Length > key.Length
                                         &&
-                                        bad.AsSpan(bad.Length - key.Length).EqualsOrdinal(sptr.Append.AsSpan())
+                                        bad.Slice(bad.Length - key.Length).EqualsOrdinal(sptr.Append.AsSpan())
                                     )
                                 )
                                 && // check needaffix flag
@@ -1866,7 +1855,7 @@ namespace WeCantSpell.Hunspell
                                         nh++;
 
                                         // add special phonetic version
-                                        if (phon != null && nh < wlst.Length)
+                                        if (!phon.IsEmpty && nh < wlst.Length)
                                         {
                                             wlst[nh].Word = (phon + key.Reverse()).AsMemory();
                                             if (wlst[nh].Word.IsEmpty)
@@ -1915,7 +1904,7 @@ namespace WeCantSpell.Hunspell
                                         (
                                             bad.Length > cptr.Key.Length
                                             &&
-                                            bad.StartsWith(cptr.Key, StringComparison.Ordinal)
+                                            bad.StartsWith(cptr.Key.AsSpan())
                                         )
                                     )
                                 )
@@ -1951,7 +1940,7 @@ namespace WeCantSpell.Hunspell
                                     (
                                         bad.Length > key.Length
                                         &&
-                                        bad.StartsWith(key, StringComparison.Ordinal)
+                                        bad.StartsWith(key.AsSpan())
                                     )
                                 )
                                 && // check needaffix flag
@@ -2221,42 +2210,39 @@ namespace WeCantSpell.Hunspell
                     : string.Empty;
             }
 
-            private bool CopyField(ref string dest, MorphSet morphs, string var)
+            private bool CopyField(out ReadOnlyMemory<char> dest, MorphSet morphs, string var)
             {
-                if (morphs.Count == 0)
+                if (morphs.Count != 0)
                 {
-                    return false;
-                }
-
-                var morph = morphs.Join(" ");
-
-                if (morph.Length == 0)
-                {
-                    return false;
-                }
-
-                var pos = morph.IndexOf(var, StringComparison.Ordinal);
-                if (pos < 0)
-                {
-                    return false;
-                }
-
-                var begOffset = pos + MorphologicalTags.TagLength;
-                var builder = StringBuilderPool.Get(morph.Length - begOffset);
-
-                for (var i = begOffset; i < morph.Length; i++)
-                {
-                    var c = morph[i];
-                    if (c == ' ' || c == '\t' || c == '\n')
+                    var morph = morphs.Join(" ");
+                    if (morph.Length != 0)
                     {
-                        break;
-                    }
+                        var pos = morph.IndexOf(var, StringComparison.Ordinal);
+                        if (pos >= 0)
+                        {
+                            var begOffset = pos + MorphologicalTags.TagLength;
+                            var readBuffer = morph.AsSpan(begOffset);
+                            var writeBuffer = new char[morph.Length - begOffset];
 
-                    builder.Append(c);
+                            for (var i = 0; i < readBuffer.Length; i++)
+                            {
+                                ref readonly var c = ref readBuffer[i];
+                                if (c == ' ' || c == '\t' || c == '\n')
+                                {
+                                    break;
+                                }
+
+                                writeBuffer[i] = c;
+                            }
+
+                            dest = writeBuffer.AsMemory();
+                            return true;
+                        }
+                    }
                 }
 
-                dest = StringBuilderPool.GetStringAndReturn(builder);
-                return true;
+                dest = ReadOnlyMemory<char>.Empty;
+                return false;
             }
 
             /// <summary>
@@ -2459,8 +2445,8 @@ namespace WeCantSpell.Hunspell
                     return string.Empty;
                 }
 
-                var word = StringBuilderPool.Get(inword.Limit(MaxPhoneTUtf8Len));
                 var target = StringBuilderPool.Get();
+                var word = StringBuilderPool.Get(inword.Limit(MaxPhoneTUtf8Len));
 
                 // check word
                 var i = 0;
