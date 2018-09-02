@@ -89,10 +89,10 @@ namespace WeCantSpell.Hunspell
 
         private FlagSet NGramRestrictedFlags { get; set; }
 
-        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetNGramAllowedDetails(Func<ReadOnlyMemory<char>, bool> rootFilter) =>
+        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetNGramAllowedDetails(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth) =>
             (NGramRestrictedDetails == null || NGramRestrictedDetails.Count == 0)
-            ? EntriesByRoot.Where(set => rootFilter(set.Key))
-            : GetAllNGramAllowedEntries(rootFilter);
+            ? GetAllEntriesByRoot(rootFilter, maxDepth)
+            : GetAllNGramAllowedEntries(rootFilter, maxDepth);
 
         private Dictionary<string, WordEntryDetail[]> NGramRestrictedDetails { get; set; }
 
@@ -155,31 +155,55 @@ namespace WeCantSpell.Hunspell
                 : null;
         }
 
-        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllNGramAllowedEntries(Func<ReadOnlyMemory<char>, bool> rootFilter) =>
-            EntriesByRoot
-            .Where(rootPair => rootFilter(rootPair.Key))
-            .Select(rootPair =>
+        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllEntriesByRoot(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth)
+        {
+            using (var entriesEnumerator = EntriesByRoot.GetEnumerator(maxDepth))
             {
-                if (NGramRestrictedDetails.TryGetValue(rootPair.Key.ToString(), out WordEntryDetail[] restrictedDetails))
+                while (entriesEnumerator.MoveNext())
                 {
-                    WordEntryDetail[] filteredValues;
-                    if (restrictedDetails.Length == 0)
+                    var rootPair = entriesEnumerator.Current;
+                    if (rootFilter(rootPair.Key))
                     {
-                        filteredValues = rootPair.Value;
+                        yield return rootPair;
                     }
-                    else if (restrictedDetails.Length == rootPair.Value.Length)
-                    {
-                        filteredValues = ArrayEx<WordEntryDetail>.Empty;
-                    }
-                    else
-                    {
-                        filteredValues = rootPair.Value.Where(d => !restrictedDetails.Contains(d)).ToArray();
-                    }
-
-                    return new KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>(rootPair.Key, filteredValues);
                 }
+            }
+        }
 
-                return rootPair;
-            });
+        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllNGramAllowedEntries(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth)
+        {
+            using (var entriesEnumerator = EntriesByRoot.GetEnumerator(maxDepth))
+            {
+                while (entriesEnumerator.MoveNext())
+                {
+                    var rootPair = entriesEnumerator.Current;
+                    if (rootFilter(rootPair.Key))
+                    {
+                        if (NGramRestrictedDetails.TryGetValue(rootPair.Key.ToString(), out WordEntryDetail[] restrictedDetails))
+                        {
+                            WordEntryDetail[] filteredValues;
+                            if (restrictedDetails.Length == 0)
+                            {
+                                filteredValues = rootPair.Value;
+                            }
+                            else if (restrictedDetails.Length == rootPair.Value.Length)
+                            {
+                                filteredValues = ArrayEx<WordEntryDetail>.Empty;
+                            }
+                            else
+                            {
+                                filteredValues = rootPair.Value.Where(d => !restrictedDetails.Contains(d)).ToArray();
+                            }
+
+                            yield return new KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>(rootPair.Key, filteredValues);
+                        }
+                        else
+                        {
+                            yield return rootPair;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

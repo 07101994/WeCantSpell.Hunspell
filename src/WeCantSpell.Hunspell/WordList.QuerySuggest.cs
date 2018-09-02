@@ -1317,12 +1317,15 @@ namespace WeCantSpell.Hunspell
                     : ReadOnlySpan<char>.Empty;
                 var isNonGermanLowercase = !Affix.IsGerman && capType == CapitalizationType.None;
 
+                var minAllowedLength = Math.Max(word.Length - 4, 0);
+                var maxAllowedLength = word.Length + 4;
+
                 foreach (var hpSet in WordList.GetNGramAllowedDetails(key =>
                 {
                     // skip it, if the word length different by 5 or
                     // more characters (to avoid strange suggestions)
-                    return Math.Abs(word.Length - key.Length) <= 4;
-                }))
+                    return key.Length >= minAllowedLength && key.Length <= maxAllowedLength;
+                }, maxAllowedLength))
                 {
                     var wordKeyLengthDifference = Math.Abs(word.Length - hpSet.Key.Length);
 

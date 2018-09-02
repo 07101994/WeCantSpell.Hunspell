@@ -38,11 +38,15 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-        public IEnumerable<ReadOnlyMemory<char>> Keys => GetAllNodes().Select(x => x.KeySequence);
+        public IEnumerable<ReadOnlyMemory<char>> Keys => GetAllNodesWithValue().Select(x => x.KeySequence);
 
-        public IEnumerable<TValue> Values => GetAllNodes().Select(x => x.Value);
+        public IEnumerable<TValue> Values => GetAllNodesWithValue().Select(x => x.Value);
 
-        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator() => GetAllNodes()
+        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator() => GetAllNodesWithValue()
+            .Select(n => new KeyValuePair<ReadOnlyMemory<char>, TValue>(n.KeySequence, n.Value))
+            .GetEnumerator();
+
+        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator(int maxDepth) => GetAllNodesWithValue(maxDepth)
             .Select(n => new KeyValuePair<ReadOnlyMemory<char>, TValue>(n.KeySequence, n.Value))
             .GetEnumerator();
 
@@ -105,7 +109,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
             int searchKeyIndex = 0;
             for (; searchKeyIndex < key.Length; searchKeyIndex++)
             {
-                var keySlice = key.Slice(0, searchKeyIndex + 1);
+                var depth = searchKeyIndex + 1;
+                var keySlice = key.Slice(0, depth);
                 ref readonly var keyValue = ref key.Span[searchKeyIndex];
                 var childNode = node.GetChildOrDefault(keyValue);
 
@@ -115,7 +120,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 {
                     childNode = new Node
                     {
-                        KeySequence = keySlice
+                        KeySequence = keySlice,
+                        Depth = depth
                     };
                     node.AddChild(keyValue, childNode);
                 }
@@ -142,27 +148,130 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return node;
         }
 
-        IEnumerable<Node> GetAllNodes()
+        IEnumerable<Node> GetAllNodesWithValue(int maxDepth = -1)
         {
-            var searchQueue = new Queue<Node>();
-            searchQueue.Enqueue(root);
-
-            while (searchQueue.Count != 0)
+            var enumerator = GetAllNodeEnumerator(maxDepth);
+            while (enumerator.MoveNext())
             {
-                var node = searchQueue.Dequeue();
-
+                var node = enumerator.Current;
                 if (node.HasValue)
                 {
                     yield return node;
                 }
+            }
+        }
 
-                if (node.HasChildren)
+        NodeEnumerator GetAllNodeEnumerator(int maxDepth)
+        {
+            return new NodeEnumerator(root, maxDepth);
+        }
+
+        struct NodeEnumerator : IEnumerator<Node>
+        {
+            public NodeEnumerator(Node root, int maxDepth)
+            {
+                this.root = root;
+                this.maxDepth = maxDepth;
+                hasReachedEnd = false;
+                visitQueue = new List<Node>();
+                Current = null;
+            }
+
+            Node root;
+
+            int maxDepth;
+
+            bool hasReachedEnd;
+
+            private List<Node> visitQueue;
+
+            public Node Current { get; private set; }
+
+            object IEnumerator.Current => Current;
+
+            public bool MoveNext()
+            {
+                if (Current == null)
                 {
-                    foreach (var childNode in node.Children.Values)
+                    if (hasReachedEnd || root == null)
                     {
-                        searchQueue.Enqueue(childNode);
+                        return false;
+                    }
+
+                    Current = root;
+                    return true;
+                }
+
+                if ((maxDepth == -1 || Current.Depth <= maxDepth) && Current.Children != null)
+                {
+                    if (HandleChildNodes())
+                    {
+                        return true;
                     }
                 }
+
+                if (visitQueue.Count != 0)
+                {
+                    Current = visitQueue.Dequeue();
+                    return true;
+                }
+
+                Current = null;
+                hasReachedEnd = true;
+                return false;
+            }
+
+            private bool HandleChildNodes()
+            {
+                var childCount = Current.Children.Count;
+                if (childCount > 0)
+                {
+                    // TODO: may need to order these for alphabetical ordering
+                    using (var childrenEnumerator = Current.Children.Values.GetEnumerator())
+                    {
+                        if (childrenEnumerator.MoveNext())
+                        {
+                            var firstChild = childrenEnumerator.Current;
+                            if (childCount != 1)
+                            {
+                                if (childCount > 3)
+                                {
+                                    var neededCapacity = visitQueue.Count + childCount - 1;
+                                    if (visitQueue.Capacity < neededCapacity)
+                                    {
+                                        visitQueue.Capacity = Math.Max(visitQueue.Capacity * 2, neededCapacity);
+                                    }
+
+                                }
+
+                                while (childrenEnumerator.MoveNext())
+                                {
+                                    // TODO: may need to order these (in reverse) for alphabetical ordering
+                                    visitQueue.Add(childrenEnumerator.Current);
+                                }
+                            }
+
+                            Current = firstChild;
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            public void Reset()
+            {
+                hasReachedEnd = false;
+                visitQueue.Clear();
+                Current = null;
+            }
+
+            public void Dispose()
+            {
+                root = null;
+                hasReachedEnd = true;
+                visitQueue = null;
             }
         }
 
@@ -170,6 +279,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
         {
             public ReadOnlyMemory<char> KeySequence;
             public Dictionary<char, Node> Children;
+            public int Depth;
             public TValue Value;
             public bool HasValue;
 
@@ -209,20 +319,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 }
 
                 Children[key] = childNode;
-            }
-
-            public Node GetOrCreateChild(char key)
-            {
-                Node child = GetChildOrDefault(key);
-
-                if (Children == null)
-                {
-                    Children = new Dictionary<char, Node>();
-                }
-
-                child = new Node();
-                Children[key] = child;
-                return child;
             }
         }
     }

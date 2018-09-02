@@ -565,7 +565,7 @@ namespace WeCantSpell.Hunspell
                             affixed = true;
 
                             {
-                                var searchEntryWord = st.ToString();
+                                var searchEntryWord = st.GetTerminatedSpan();
 
                                 var searchEntryDetails = LookupDetails(searchEntryWord);
                                 if (searchEntryDetails.Length > 0)
@@ -622,7 +622,7 @@ namespace WeCantSpell.Hunspell
                                         }
                                     }
 
-                                    rv = rvDetail?.ToEntry(searchEntryWord);
+                                    rv = rvDetail?.ToEntry(searchEntryWord.ToString());
                                 }
                                 else
                                 {
