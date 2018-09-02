@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using WeCantSpell.Hunspell.Infrastructure;
+using System.Collections;
 
 #if !NO_INLINE
 using System.Runtime.CompilerServices;
@@ -89,10 +90,8 @@ namespace WeCantSpell.Hunspell
 
         private FlagSet NGramRestrictedFlags { get; set; }
 
-        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetNGramAllowedDetails(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth) =>
-            (NGramRestrictedDetails == null || NGramRestrictedDetails.Count == 0)
-            ? GetAllEntriesByRoot(rootFilter, maxDepth)
-            : GetAllNGramAllowedEntries(rootFilter, maxDepth);
+        private NGramAllowedEntries GetNGramAllowedDetails(Func<ReadOnlyMemory<char>, bool> rootKeyFilter, int maxDepth) =>
+            new NGramAllowedEntries(this, rootKeyFilter, maxDepth);
 
         private Dictionary<string, WordEntryDetail[]> NGramRestrictedDetails { get; set; }
 
@@ -155,53 +154,98 @@ namespace WeCantSpell.Hunspell
                 : null;
         }
 
-        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllEntriesByRoot(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth)
+        private class NGramAllowedEntries : IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>>
         {
-            using (var entriesEnumerator = EntriesByRoot.GetEnumerator(maxDepth))
+            public NGramAllowedEntries(WordList wordList, Func<ReadOnlyMemory<char>, bool> rootKeyFilter, int maxDepth)
             {
-                while (entriesEnumerator.MoveNext())
-                {
-                    var rootPair = entriesEnumerator.Current;
-                    if (rootFilter(rootPair.Key))
-                    {
-                        yield return rootPair;
-                    }
-                }
+                this.wordList = wordList;
+                this.rootKeyFilter = rootKeyFilter;
+                this.maxDepth = maxDepth;
             }
-        }
 
-        private IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> GetAllNGramAllowedEntries(Func<ReadOnlyMemory<char>, bool> rootFilter, int maxDepth)
-        {
-            using (var entriesEnumerator = EntriesByRoot.GetEnumerator(maxDepth))
+            private readonly WordList wordList;
+
+            private readonly Func<ReadOnlyMemory<char>, bool> rootKeyFilter;
+
+            private readonly int maxDepth;
+
+            public Enumerator GetEnumerator() => new Enumerator(wordList.EntriesByRoot, wordList.NGramRestrictedDetails, rootKeyFilter, maxDepth);
+
+            IEnumerator<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>> IEnumerable<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>>.GetEnumerator() => GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+            public class Enumerator : IEnumerator<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>>
             {
-                while (entriesEnumerator.MoveNext())
+                public Enumerator(StringTrie<WordEntryDetail[]> entriesByRoot, Dictionary<string, WordEntryDetail[]> nGramRestrictedDetails, Func<ReadOnlyMemory<char>, bool> rootKeyFilter, int maxDepth)
                 {
-                    var rootPair = entriesEnumerator.Current;
-                    if (rootFilter(rootPair.Key))
-                    {
-                        if (NGramRestrictedDetails.TryGetValue(rootPair.Key.ToString(), out WordEntryDetail[] restrictedDetails))
-                        {
-                            WordEntryDetail[] filteredValues;
-                            if (restrictedDetails.Length == 0)
-                            {
-                                filteredValues = rootPair.Value;
-                            }
-                            else if (restrictedDetails.Length == rootPair.Value.Length)
-                            {
-                                filteredValues = ArrayEx<WordEntryDetail>.Empty;
-                            }
-                            else
-                            {
-                                filteredValues = rootPair.Value.Where(d => !restrictedDetails.Contains(d)).ToArray();
-                            }
+                    coreEnumerator = entriesByRoot.GetEnumerator(maxDepth);
+                    this.entriesByRoot = entriesByRoot;
+                    this.nGramRestrictedDetails = nGramRestrictedDetails;
+                    this.rootKeyFilter = rootKeyFilter;
+                    this.maxDepth = maxDepth;
+                    requiresNGramFiltering = nGramRestrictedDetails != null && nGramRestrictedDetails.Count != 0;
+                }
 
-                            yield return new KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>(rootPair.Key, filteredValues);
-                        }
-                        else
+                StringTrie<WordEntryDetail[]>.Enumerator coreEnumerator;
+                StringTrie<WordEntryDetail[]> entriesByRoot;
+                Dictionary<string, WordEntryDetail[]> nGramRestrictedDetails;
+                Func<ReadOnlyMemory<char>, bool> rootKeyFilter;
+                int maxDepth;
+                bool requiresNGramFiltering;
+
+                public KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]> Current { get; private set; }
+
+                object IEnumerator.Current => Current;
+
+                public bool MoveNext()
+                {
+                    while (coreEnumerator.MoveNext())
+                    {
+                        var rootPair = coreEnumerator.Current;
+                        if (!rootKeyFilter(rootPair.Key))
                         {
-                            yield return rootPair;
+                            continue;
                         }
+
+                        if (requiresNGramFiltering)
+                        {
+                            if (nGramRestrictedDetails.TryGetValue(rootPair.Key.ToString(), out WordEntryDetail[] restrictedDetails))
+                            {
+                                if (restrictedDetails.Length != 0)
+                                {
+                                    WordEntryDetail[] filteredValues = rootPair.Value;
+                                    if (restrictedDetails.Length == rootPair.Value.Length)
+                                    {
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        filteredValues = filteredValues.Where(d => !restrictedDetails.Contains(d)).ToArray();
+                                    }
+
+                                    rootPair = new KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>(rootPair.Key, filteredValues);
+                                }
+                            }
+                        }
+
+                        Current = rootPair;
+                        return true;
                     }
+
+                    Current = default;
+                    return false;
+                }
+
+                public void Reset()
+                {
+                    coreEnumerator.Dispose();
+                    coreEnumerator = entriesByRoot.GetEnumerator(maxDepth);
+                }
+
+                public void Dispose()
+                {
+                    coreEnumerator.Dispose();
                 }
             }
         }
