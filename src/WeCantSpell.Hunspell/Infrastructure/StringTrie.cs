@@ -38,17 +38,39 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-        public IEnumerable<ReadOnlyMemory<char>> Keys => GetAllNodesWithValue().Select(x => x.KeySequence);
+        public IEnumerable<ReadOnlyMemory<char>> Keys
+        {
+            get
+            {
+                using (var enumerator = GetEnumerator())
+                {
+                    while (enumerator.MoveNext())
+                    {
+                        yield return enumerator.Current.Key;
+                    }
+                }
+            }
+        }
 
-        public IEnumerable<TValue> Values => GetAllNodesWithValue().Select(x => x.Value);
+        public IEnumerable<TValue> Values
+        {
+            get
+            {
+                using (var enumerator = GetEnumerator())
+                {
+                    while (enumerator.MoveNext())
+                    {
+                        yield return enumerator.Current.Value;
+                    }
+                }
+            }
+        }
 
-        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator() => GetAllNodesWithValue()
-            .Select(n => new KeyValuePair<ReadOnlyMemory<char>, TValue>(n.KeySequence, n.Value))
-            .GetEnumerator();
+        public Enumerator GetEnumerator() => GetEnumerator(-1);
 
-        public IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> GetEnumerator(int maxDepth) => GetAllNodesWithValue(maxDepth)
-            .Select(n => new KeyValuePair<ReadOnlyMemory<char>, TValue>(n.KeySequence, n.Value))
-            .GetEnumerator();
+        public Enumerator GetEnumerator(int maxDepth) => new Enumerator(GetAllNodeEnumerator(maxDepth));
+
+        IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>> IEnumerable<KeyValuePair<ReadOnlyMemory<char>, TValue>>.GetEnumerator() => GetEnumerator(-1);
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
@@ -148,25 +170,53 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return node;
         }
 
-        IEnumerable<Node> GetAllNodesWithValue(int maxDepth = -1)
-        {
-            var enumerator = GetAllNodeEnumerator(maxDepth);
-            while (enumerator.MoveNext())
-            {
-                var node = enumerator.Current;
-                if (node.HasValue)
-                {
-                    yield return node;
-                }
-            }
-        }
-
         NodeEnumerator GetAllNodeEnumerator(int maxDepth)
         {
             return new NodeEnumerator(root, maxDepth);
         }
 
-        struct NodeEnumerator : IEnumerator<Node>
+        public struct Enumerator : IEnumerator<KeyValuePair<ReadOnlyMemory<char>, TValue>>
+        {
+            internal Enumerator(NodeEnumerator enumerator)
+            {
+                this.enumerator = enumerator;
+                Current = default;
+            }
+
+            NodeEnumerator enumerator;
+
+            public KeyValuePair<ReadOnlyMemory<char>, TValue> Current { get; private set; }
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
+            {
+                enumerator.Dispose();
+            }
+
+            public bool MoveNext()
+            {
+                while (enumerator.MoveNext())
+                {
+                    var node = enumerator.Current;
+                    if (node.HasValue)
+                    {
+                        Current = new KeyValuePair<ReadOnlyMemory<char>, TValue>(node.KeySequence, node.Value);
+                        return true;
+                    }
+                }
+
+                Current = default;
+                return false;
+            }
+
+            public void Reset()
+            {
+                enumerator.Reset();
+            }
+        }
+
+        internal struct NodeEnumerator : IEnumerator<Node>
         {
             public NodeEnumerator(Node root, int maxDepth)
             {
@@ -174,7 +224,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 this.maxDepth = maxDepth;
                 hasReachedEnd = false;
                 visitQueue = new List<Node>();
-                Current = null;
+                Current = default;
             }
 
             Node root;
@@ -224,34 +274,26 @@ namespace WeCantSpell.Hunspell.Infrastructure
             private bool HandleChildNodes()
             {
                 var childCount = Current.Children.Count;
-                if (childCount > 0)
+                if (childCount != 0)
                 {
                     // TODO: may need to order these for alphabetical ordering
                     using (var childrenEnumerator = Current.Children.Values.GetEnumerator())
                     {
                         if (childrenEnumerator.MoveNext())
                         {
-                            var firstChild = childrenEnumerator.Current;
-                            if (childCount != 1)
+                            Current = childrenEnumerator.Current;
+
+                            if (childCount > 5)
                             {
-                                if (childCount > 3)
-                                {
-                                    var neededCapacity = visitQueue.Count + childCount - 1;
-                                    if (visitQueue.Capacity < neededCapacity)
-                                    {
-                                        visitQueue.Capacity = Math.Max(visitQueue.Capacity * 2, neededCapacity);
-                                    }
-
-                                }
-
-                                while (childrenEnumerator.MoveNext())
-                                {
-                                    // TODO: may need to order these (in reverse) for alphabetical ordering
-                                    visitQueue.Add(childrenEnumerator.Current);
-                                }
+                                visitQueue.PrepareCapacity(visitQueue.Count + childCount - 1);
                             }
 
-                            Current = firstChild;
+                            while (childrenEnumerator.MoveNext())
+                            {
+                                // TODO: may need to order these (in reverse) for alphabetical ordering
+                                visitQueue.Add(childrenEnumerator.Current);
+                            }
+
                             return true;
                         }
                     }
@@ -275,7 +317,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-        sealed class Node
+        internal sealed class Node
         {
             public ReadOnlyMemory<char> KeySequence;
             public Dictionary<char, Node> Children;

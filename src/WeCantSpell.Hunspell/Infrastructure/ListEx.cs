@@ -17,5 +17,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
             @this.RemoveAt(lastIndex);
             return item;
         }
+
+        public static void PrepareCapacity<T>(this List<T> @this, int neededCapacity)
+        {
+#if DEBUG
+            if (@this == null) throw new ArgumentNullException(nameof(@this));
+#endif
+
+            if (@this.Capacity < neededCapacity)
+            {
+                @this.Capacity = Math.Max(@this.Capacity * 2, neededCapacity);
+            }
+        }
     }
 }
