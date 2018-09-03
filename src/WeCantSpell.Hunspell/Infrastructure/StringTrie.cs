@@ -72,6 +72,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public bool ContainsKey(string key) => ContainsKey(key.AsSpan());
 
+        public bool ContainsKey(ReadOnlyMemory<char> key) => ContainsKey(key.Span);
+
         public bool ContainsKey(ReadOnlySpan<char> key)
         {
             var node = FindNode(key);
@@ -87,6 +89,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             return TryGetValue(key.AsSpan(), out value);
         }
+
+        public bool TryGetValue(ReadOnlyMemory<char> key, out TValue value) => TryGetValue(key.Span, out value);
 
         public bool TryGetValue(ReadOnlySpan<char> key, out TValue value)
         {

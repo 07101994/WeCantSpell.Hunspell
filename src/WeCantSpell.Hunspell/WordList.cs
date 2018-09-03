@@ -81,7 +81,7 @@ namespace WeCantSpell.Hunspell
         public bool ContainsEntriesForRootWord(string rootWord) =>
             EntriesByRoot.ContainsKey(rootWord);
 
-        public bool ContainsEntriesForRootWord(ReadOnlySpan<char> rootWord) =>
+        public bool ContainsEntriesForRootWord(ReadOnlyMemory<char> rootWord) =>
             EntriesByRoot.ContainsKey(rootWord);
 
         public WordEntryDetail[] this[string rootWord] =>
@@ -100,11 +100,11 @@ namespace WeCantSpell.Hunspell
 
         public bool Check(string word) => new QueryCheck(this).Check(word);
 
-        public bool Check(ReadOnlySpan<char> word) => new QueryCheck(this).Check(word);
+        public bool Check(ReadOnlyMemory<char> word) => new QueryCheck(this).Check(word);
 
-        public SpellCheckResult CheckDetails(ReadOnlySpan<char> word) => new QueryCheck(this).CheckDetails(word);
+        public SpellCheckResult CheckDetails(ReadOnlyMemory<char> word) => new QueryCheck(this).CheckDetails(word);
 
-        public SpellCheckResult CheckDetails(string word) => CheckDetails(word.AsSpan());
+        public SpellCheckResult CheckDetails(string word) => CheckDetails(word.AsMemory());
 
         public IEnumerable<string> Suggest(string word) => new QuerySuggest(this).Suggest(word);
 

@@ -220,6 +220,33 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder);
         }
 
+        public static ReadOnlyMemory<char> MakeInitCap(ReadOnlyMemory<char> s, TextInfo textInfo)
+        {
+#if DEBUG
+            if (textInfo == null) throw new ArgumentNullException(nameof(textInfo));
+#endif
+            if (s.IsEmpty)
+            {
+                return ReadOnlyMemory<char>.Empty;
+            }
+
+            var actualFirstLetter = s.Span[0];
+            var expectedFirstLetter = textInfo.ToUpper(actualFirstLetter);
+            if (expectedFirstLetter == actualFirstLetter)
+            {
+                return s;
+            }
+
+            if (s.Length == 1)
+            {
+                return expectedFirstLetter.ToString().AsMemory();
+            }
+
+            var builder = StringBuilderPool.Get(s);
+            builder[0] = expectedFirstLetter;
+            return StringBuilderPool.GetStringAndReturn(builder).AsMemory();
+        }
+
         /// <summary>
         /// Convert to all little.
         /// </summary>
@@ -230,6 +257,19 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (textInfo == null) throw new ArgumentNullException(nameof(textInfo));
 #endif
             return textInfo.ToLower(s);
+        }
+
+        /// <summary>
+        /// Convert to all little.
+        /// </summary>
+        public static Memory<char> MakeAllSmall(ReadOnlyMemory<char> s, CultureInfo culture)
+        {
+#if DEBUG
+            if (culture == null) throw new ArgumentNullException(nameof(culture));
+#endif
+            var buffer = new char[s.Length].AsMemory();
+            s.Span.ToLower(buffer.Span, culture);
+            return buffer;
         }
 
         /// <summary>
@@ -274,6 +314,34 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder);
         }
 
+        public static ReadOnlyMemory<char> MakeInitSmall(ReadOnlyMemory<char> s, TextInfo textInfo)
+        {
+#if DEBUG
+            if (textInfo == null) throw new ArgumentNullException(nameof(textInfo));
+#endif
+
+            if (s.Length == 0)
+            {
+                return ReadOnlyMemory<char>.Empty;
+            }
+
+            var actualFirstLetter = s.Span[0];
+            var expectedFirstLetter = textInfo.ToLower(actualFirstLetter);
+            if (expectedFirstLetter == actualFirstLetter)
+            {
+                return s;
+            }
+
+            if (s.Length == 1)
+            {
+                return expectedFirstLetter.ToString().AsMemory();
+            }
+
+            var builder = StringBuilderPool.Get(s);
+            builder[0] = expectedFirstLetter;
+            return StringBuilderPool.GetStringAndReturn(builder).AsMemory();
+        }
+
         public static string MakeAllCap(string s, TextInfo textInfo)
         {
 #if DEBUG
@@ -313,6 +381,27 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return new ReadOnlySpan<char>(buffer);
         }
 
+        public static ReadOnlyMemory<char> MakeTitleCase(ReadOnlyMemory<char> s, CultureInfo cultureInfo)
+        {
+#if DEBUG
+            if (cultureInfo == null) throw new ArgumentNullException(nameof(cultureInfo));
+#endif
+
+            if (s.IsEmpty)
+            {
+                return s;
+            }
+
+            var span = s.Span;
+            var buffer = new char[span.Length];
+            span.Slice(0, 1).ToUpper(buffer.AsSpan(0, 1), cultureInfo);
+            if (span.Length > 1)
+            {
+                span.Slice(1).ToLower(buffer.AsSpan(1), cultureInfo);
+            }
+            return buffer.AsMemory();
+        }
+
         public static ReadOnlySpan<char> ReDecodeConvertedStringAsUtf8(ReadOnlySpan<char> decoded, Encoding encoding)
         {
             if (Encoding.UTF8.Equals(encoding))
@@ -322,6 +411,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             var encodedBytes = encoding.GetBytes(decoded.ToArray());
             return Encoding.UTF8.GetString(encodedBytes, 0, encodedBytes.Length).AsSpan();
+        }
+
+        public static ReadOnlyMemory<char> ReDecodeConvertedStringAsUtf8(ReadOnlyMemory<char> decoded, Encoding encoding)
+        {
+            if (Encoding.UTF8.Equals(encoding))
+            {
+                return decoded;
+            }
+
+            var encodedBytes = encoding.GetBytes(decoded.ToArray());
+            return Encoding.UTF8.GetString(encodedBytes, 0, encodedBytes.Length).AsMemory();
         }
 
         public static CapitalizationType GetCapitalizationType(ReadOnlySpan<char> word, TextInfo textInfo)
@@ -392,5 +492,21 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return CapitalizationType.Huh;
             }
         }
+
+        public static bool TestTripleLetters(ReadOnlySpan<char> word, int i) =>
+            // test triple letters
+            i <= 0
+            ||
+            i >= word.Length
+            ||
+            word[i - 1] != word[i]
+            ||
+            (
+                (i < 2 || word[i - 1] != word[i - 2])
+                &&
+                (i + 1 >= word.Length || word[i - 1] != word[i + 1]) // may be word[i+1] == '\0'
+            );
+
+        public static bool TestSimpleDoubleLetter(ReadOnlySpan<char> word, int i) => word[i - 1] == word[i - 2];
     }
 }

@@ -123,6 +123,9 @@ namespace WeCantSpell.Hunspell
         public static FlagSet ParseFlags(string text, FlagMode mode) =>
             ParseFlags(text.AsSpan(), mode);
 
+        public static FlagSet ParseFlags(ReadOnlyMemory<char> text, FlagMode mode) =>
+            ParseFlags(text.Span, mode);
+
 #if !NO_INLINE
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif

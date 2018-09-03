@@ -86,17 +86,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static string ConcatString(string str0, string str1, int startIndex1, int count1) =>
             str0.ConcatString(str1.AsSpan(startIndex1, count1));
 
-        public static string ConcatString(string str0, int startIndex0, int count0, string str1, char char2, string str3, int startIndex3)
-        {
-            var count3 = str3.Length - startIndex3;
-            var builder = StringBuilderPool.Get(count0 + str1.Length + 1 + count3);
-            builder.Append(str0, startIndex0, count0);
-            builder.Append(str1);
-            builder.Append(char2);
-            builder.Append(str3, startIndex3, count3);
-            return StringBuilderPool.GetStringAndReturn(builder);
-        }
-
         public static string ConcatString(string str0, int startIndex0, int count0, string str1, string str2, int startIndex2)
         {
             var count2 = str2.Length - startIndex2;

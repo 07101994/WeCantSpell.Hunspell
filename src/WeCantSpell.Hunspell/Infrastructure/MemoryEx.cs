@@ -2,7 +2,7 @@
 
 namespace WeCantSpell.Hunspell.Infrastructure
 {
-    static class ReadOnlySpanEx
+    static class MemoryEx
     {
         public delegate bool SplitPartHandler(ReadOnlySpan<char> part, int index);
 
@@ -171,7 +171,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder).AsSpan();
         }
 
-        public static ReadOnlySpan<char> Remove(this ReadOnlySpan<char> @this, CharacterSet chars)
+        public static ReadOnlyMemory<char> Remove(this ReadOnlyMemory<char> @this, CharacterSet chars)
         {
 #if DEBUG
             if (chars == null)
@@ -179,13 +179,13 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 throw new ArgumentNullException(nameof(chars));
             }
 #endif
-
+            var span = @this.Span;
             if (@this.IsEmpty || chars.IsEmpty)
             {
                 return @this;
             }
 
-            var removeIndex = @this.IndexOfAny(chars);
+            var removeIndex = span.IndexOfAny(chars);
             if (removeIndex < 0)
             {
                 return @this;
@@ -200,14 +200,14 @@ namespace WeCantSpell.Hunspell.Infrastructure
             builder.Append(@this.Slice(0, removeIndex));
             for (var i = removeIndex; i < @this.Length; i++)
             {
-                ref readonly var c = ref @this[i];
+                ref readonly var c = ref span[i];
                 if (!chars.Contains(c))
                 {
                     builder.Append(c);
                 }
             }
 
-            return StringBuilderPool.GetStringAndReturn(builder).AsSpan();
+            return StringBuilderPool.GetStringAndReturn(builder).AsMemory();
         }
 
         public static ReadOnlySpan<char> Replace(this ReadOnlySpan<char> @this, char oldChar, char newChar)
@@ -230,9 +230,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder).AsSpan();
         }
 
-        public static ReadOnlySpan<char> Replace(this ReadOnlySpan<char> @this, string oldText, string newText)
+        public static ReadOnlyMemory<char> Replace(this ReadOnlyMemory<char> @this, string oldText, string newText)
         {
-            var replaceIndex = @this.IndexOf(oldText.AsSpan());
+            var replaceIndex = @this.Span.IndexOf(oldText.AsSpan());
             if (replaceIndex < 0)
             {
                 return @this;
@@ -240,16 +240,21 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
             // TODO: use replaceIndex to optimize
 
-            return @this.ToString().Replace(oldText, newText).AsSpan();
+            return @this.ToString().Replace(oldText, newText).AsMemory();
         }
 
-        public static ReadOnlySpan<char> Reversed(this ReadOnlySpan<char> @this)
+        public static ReadOnlyMemory<char> Replace(this ReadOnlyMemory<char> @this, int index, int removeCount, string replacement)
         {
-            if (@this.Length <= 1)
-            {
-                return @this;
-            }
+            var builder = StringBuilderPool.Get(@this, Math.Max(@this.Length, @this.Length + replacement.Length - removeCount));
+            builder.Replace(index, removeCount, replacement);
+            return StringBuilderPool.GetStringAndReturn(builder).AsMemory();
+        }
 
+        public static ReadOnlyMemory<char> GetReversed(this ReadOnlyMemory<char> @this) =>
+            @this.Length <= 1 ? @this : GetReversed(@this.Span);
+
+        public static ReadOnlyMemory<char> GetReversed(this ReadOnlySpan<char> @this)
+        {
             var chars = new char[@this.Length];
             var lastIndex = @this.Length - 1;
             for (var i = 0; i < chars.Length; i++)
@@ -257,7 +262,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 chars[i] = @this[lastIndex - i];
             }
 
-            return new ReadOnlySpan<char>(chars);
+            return new ReadOnlyMemory<char>(chars);
         }
 
         public static string Insert(this ReadOnlySpan<char> @this, int index, char value)

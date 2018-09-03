@@ -40,6 +40,10 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static StringBuilder Get(string value, int valueStartIndex, int valueLength, int capacity) =>
             GetClearedBuilderWithCapacity(capacity).Append(value, valueStartIndex, valueLength);
 
+        public static StringBuilder Get(ReadOnlyMemory<char> value) => Get(value.Span);
+
+        public static StringBuilder Get(ReadOnlyMemory<char> value, int capactity) => Get(value.Span, capactity);
+
         public static StringBuilder Get(ReadOnlySpan<char> value) =>
             GetClearedBuilderWithCapacity(value.Length).Append(value);
 

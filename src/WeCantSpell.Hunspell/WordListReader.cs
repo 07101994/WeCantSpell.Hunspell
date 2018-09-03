@@ -344,7 +344,7 @@ namespace WeCantSpell.Hunspell
             return false;
         }
 
-        private bool AddWord(ReadOnlySpan<char> word, FlagSet flags, string[] morphs)
+        private bool AddWord(ReadOnlyMemory<char> word, FlagSet flags, string[] morphs)
         {
             if (Affix.IgnoredChars.HasItems)
             {
@@ -353,7 +353,7 @@ namespace WeCantSpell.Hunspell
 
             if (Affix.ComplexPrefixes)
             {
-                word = word.Reversed();
+                word = word.GetReversed();
 
                 if (morphs.Length != 0 && !Affix.IsAliasM)
                 {
@@ -361,12 +361,12 @@ namespace WeCantSpell.Hunspell
                 }
             }
 
-            var capType = HunspellTextFunctions.GetCapitalizationType(word, TextInfo);
+            var capType = HunspellTextFunctions.GetCapitalizationType(word.Span, TextInfo);
             return AddWord(word, flags, morphs, false, capType)
                 || AddWordCapitalized(word, flags, morphs, capType);
         }
 
-        private bool AddWord(ReadOnlySpan<char> word, FlagSet flags, string[] morphs, bool onlyUpperCase, CapitalizationType capType)
+        private bool AddWord(ReadOnlyMemory<char> word, FlagSet flags, string[] morphs, bool onlyUpperCase, CapitalizationType capType)
         {
             // store the description string or its pointer
             var options = capType == CapitalizationType.Init ? WordEntryOptions.InitCap : WordEntryOptions.None;
@@ -405,17 +405,17 @@ namespace WeCantSpell.Hunspell
 
                         do
                         {
-                            var ph = morphPhonEnumerator.Current.AsSpan(MorphologicalTags.Phon.Length);
+                            var ph = morphPhonEnumerator.Current.AsMemory(MorphologicalTags.Phon.Length);
                             if (ph.Length == 0)
                             {
                                 continue;
                             }
 
-                            ReadOnlySpan<char> wordpart;
+                            ReadOnlyMemory<char> wordpart;
                             // dictionary based REP replacement, separated by "->"
                             // for example "pretty ph:prity ph:priti->pretti" to handle
                             // both prity -> pretty and pritier -> prettiest suggestions.
-                            int strippatt = ph.IndexOf("->".AsSpan());
+                            int strippatt = ph.Span.IndexOf("->".AsSpan());
                             if (strippatt > 0 && strippatt < (ph.Length - 2))
                             {
                                 wordpart = ph.Slice(strippatt + 2);
@@ -432,7 +432,7 @@ namespace WeCantSpell.Hunspell
                             // for example, "pretty ph:prity*" results "prit->prett"
                             // REP replacement instead of "prity->pretty", to get
                             // prity->pretty and pritiest->prettiest suggestions.
-                            if (ph.EndsWith('*'))
+                            if (ph.Span.EndsWith('*'))
                             {
                                 if (ph.Length > 2 && wordpart.Length > 1)
                                 {
@@ -513,7 +513,7 @@ namespace WeCantSpell.Hunspell
             return false;
         }
 
-        private bool AddWordCapitalized(ReadOnlySpan<char> word, FlagSet flags, string[] morphs, CapitalizationType capType)
+        private bool AddWordCapitalized(ReadOnlyMemory<char> word, FlagSet flags, string[] morphs, CapitalizationType capType)
         {
             // add inner capitalized forms to handle the following allcap forms:
             // Mixed caps: OpenOffice.org -> OPENOFFICE.ORG
@@ -537,13 +537,13 @@ namespace WeCantSpell.Hunspell
             return false;
         }
 
-        private readonly ref struct ParsedWordLine
+        private readonly struct ParsedWordLine
         {
-            public readonly ReadOnlySpan<char> Word;
-            public readonly ReadOnlySpan<char> Flags;
+            public readonly ReadOnlyMemory<char> Word;
+            public readonly ReadOnlyMemory<char> Flags;
             public readonly string[] Morphs;
 
-            private ParsedWordLine(ReadOnlySpan<char> word, ReadOnlySpan<char> flags, string[] morphs)
+            private ParsedWordLine(ReadOnlyMemory<char> word, ReadOnlyMemory<char> flags, string[] morphs)
             {
                 Word = word;
                 Flags = flags;
@@ -581,17 +581,17 @@ namespace WeCantSpell.Hunspell
 
                 var flagsDelimiterPosition = IndexOfFlagsDelimiter(line, firstNonDelimiterPosition, endOfWordAndFlagsPosition);
 
-                ReadOnlySpan<char> word;
-                ReadOnlySpan<char> flagsPart;
+                ReadOnlyMemory<char> word;
+                ReadOnlyMemory<char> flagsPart;
                 if (flagsDelimiterPosition < 0)
                 {
-                    word = line.AsSpan(firstNonDelimiterPosition, endOfWordAndFlagsPosition - firstNonDelimiterPosition);
-                    flagsPart = ReadOnlySpan<char>.Empty;
+                    word = line.AsMemory(firstNonDelimiterPosition, endOfWordAndFlagsPosition - firstNonDelimiterPosition);
+                    flagsPart = ReadOnlyMemory<char>.Empty;
                 }
                 else
                 {
-                    word = line.AsSpan(firstNonDelimiterPosition, flagsDelimiterPosition - firstNonDelimiterPosition);
-                    flagsPart = line.AsSpan(flagsDelimiterPosition + 1, endOfWordAndFlagsPosition - flagsDelimiterPosition - 1);
+                    word = line.AsMemory(firstNonDelimiterPosition, flagsDelimiterPosition - firstNonDelimiterPosition);
+                    flagsPart = line.AsMemory(flagsDelimiterPosition + 1, endOfWordAndFlagsPosition - flagsDelimiterPosition - 1);
                 }
 
                 if (word.Length != 0)

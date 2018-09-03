@@ -8,17 +8,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
 {
     ref struct SimulatedCString
     {
-        public SimulatedCString(ReadOnlySpan<char> text)
+        public SimulatedCString(ReadOnlyMemory<char> text)
         {
             buffer = text.ToArray();
-            cachedSpan = buffer.AsSpan();
+            cachedMemory = buffer.AsMemory();
             cachedString = null;
             cacheRequiresRefresh = true;
         }
 
         private char[] buffer;
         private string cachedString;
-        private Span<char> cachedSpan;
+        private Memory<char> cachedMemory;
         private bool cacheRequiresRefresh;
 
         public char this[int index]
@@ -83,20 +83,22 @@ namespace WeCantSpell.Hunspell.Infrastructure
         }
 
         public override string ToString() =>
-            cachedString ?? (cachedString = GetTerminatedSpan().ToString());
+            cachedString ?? (cachedString = GetTerminatedMemory().ToString());
 
-        public Span<char> GetTerminatedSpan()
+        public Span<char> GetTerminatedSpan() => GetTerminatedMemory().Span;
+
+        public Memory<char> GetTerminatedMemory()
         {
             if (cacheRequiresRefresh)
             {
                 var nullIndex = Array.IndexOf(buffer, '\0');
-                cachedSpan = nullIndex >= 0
-                    ? buffer.AsSpan(0, nullIndex)
-                    : buffer.AsSpan();
+                cachedMemory = nullIndex >= 0
+                    ? buffer.AsMemory(0, nullIndex)
+                    : buffer.AsMemory();
                 cacheRequiresRefresh = false;
             }
 
-            return cachedSpan;
+            return cachedMemory;
         }
 
         private void ResetCache()

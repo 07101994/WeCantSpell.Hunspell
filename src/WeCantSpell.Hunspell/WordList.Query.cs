@@ -184,14 +184,14 @@ namespace WeCantSpell.Hunspell
             private bool HasSpecialInitCap(SpellCheckResultType info, WordEntryDetail he) =>
                 EnumEx.HasFlag(info, SpellCheckResultType.InitCap) && he.ContainsFlag(SpecialFlags.OnlyUpcaseFlag);
 
-            public bool Check(string word) => Check(word.AsSpan());
+            public bool Check(string word) => Check(word.AsMemory());
 
-            public bool Check(ReadOnlySpan<char> word) => new QueryCheck(WordList).CheckDetails(word).Correct;
+            public bool Check(ReadOnlyMemory<char> word) => new QueryCheck(WordList).CheckDetails(word).Correct;
 
             protected WordEntry CheckWord(string word, ref SpellCheckResultType info, out string root) =>
-                CheckWord(word.AsSpan(), ref info, out root);
+                CheckWord(word.AsMemory(), ref info, out root);
 
-            protected WordEntry CheckWord(ReadOnlySpan<char> word, ref SpellCheckResultType info, out string root)
+            protected WordEntry CheckWord(ReadOnlyMemory<char> word, ref SpellCheckResultType info, out string root)
             {
                 root = null;
 
@@ -213,7 +213,7 @@ namespace WeCantSpell.Hunspell
                 // word reversing wrapper for complex prefixes
                 if (Affix.ComplexPrefixes)
                 {
-                    word = word.Reversed();
+                    word = word.GetReversed();
                 }
 
                 // look word in hash table
@@ -304,7 +304,7 @@ namespace WeCantSpell.Hunspell
                     var rwords = new IncrementalWordList();
                     he = CompoundCheck(word, 0, 0, 100, null, rwords, false, 0, ref info);
 
-                    if (he == null && word.EndsWith('-') && Affix.IsHungarian)
+                    if (he == null && word.Span.EndsWith('-') && Affix.IsHungarian)
                     {
                         // LANG_hu section: `moving rule' with last dash
                         he = CompoundCheck(word.Slice(0, word.Length - 1), -5, 0, 100, null, rwords, true, 0, ref info);
@@ -448,7 +448,7 @@ namespace WeCantSpell.Hunspell
                 return null;
             }
 
-            protected WordEntry CompoundCheck(ReadOnlySpan<char> word, int wordNum, int numSyllable, int maxwordnum, IncrementalWordList words, IncrementalWordList rwords, bool huMovRule, int isSug, ref SpellCheckResultType info)
+            protected WordEntry CompoundCheck(ReadOnlyMemory<char> word, int wordNum, int numSyllable, int maxwordnum, IncrementalWordList words, IncrementalWordList rwords, bool huMovRule, int isSug, ref SpellCheckResultType info)
             {
                 int oldnumsyllable, oldnumsyllable2, oldwordnum, oldwordnum2;
                 WordEntry rv;
@@ -510,7 +510,7 @@ namespace WeCantSpell.Hunspell
                             FlagValue scpdPatternEntryCondition2;
                             if (scpd > 0)
                             {
-                                for (; scpd <= Affix.CompoundPatterns.Count && Affix.CompoundPatterns[scpd - 1].Pattern3DoesNotMatch(word, i); scpd++) ;
+                                for (; scpd <= Affix.CompoundPatterns.Count && Affix.CompoundPatterns[scpd - 1].Pattern3DoesNotMatch(word.Span, i); scpd++) ;
 
                                 if (scpd > Affix.CompoundPatterns.Count)
                                 {
@@ -528,7 +528,7 @@ namespace WeCantSpell.Hunspell
 
                                 st.WriteChars(scpdPatternEntry.Pattern2, i);
 
-                                st.WriteChars(soldi + scpdPatternEntry.Pattern3.Length, word, i + scpdPatternEntry.Pattern2.Length);
+                                st.WriteChars(soldi + scpdPatternEntry.Pattern3.Length, word.Span, i + scpdPatternEntry.Pattern2.Length);
 
                                 oldlen = len;
                                 len += scpdPatternEntry.Pattern.Length + scpdPatternEntry.Pattern2.Length + scpdPatternEntry.Pattern3.Length;
@@ -824,24 +824,14 @@ namespace WeCantSpell.Hunspell
                                         (
                                             (
                                                 !Affix.CheckCompoundTriple
-                                                || // test triple letters
-                                                i <= 0
                                                 ||
-                                                i >= word.Length
-                                                ||
-                                                word[i - 1] != word[i]
-                                                ||
-                                                (
-                                                    (i < 2 || word[i - 1] != word[i - 2])
-                                                    &&
-                                                    (i + 1 >= word.Length || word[i - 1] != word[i + 1]) // may be word[i+1] == '\0'
-                                                )
+                                                HunspellTextFunctions.TestTripleLetters(word.Span, i)
                                             )
                                             &&
                                             (
                                                 !Affix.CheckCompoundCase
                                                 ||
-                                                !CompoundCaseCheck(word, i)
+                                                !CompoundCaseCheck(word.Span, i)
                                             )
                                         )
                                     );
@@ -873,7 +863,7 @@ namespace WeCantSpell.Hunspell
                                     // XXX only second suffix (inflections, not derivations)
                                     if (SuffixAppend != null)
                                     {
-                                        numSyllable -= GetSyllable(SuffixAppend.AsSpan().Reversed());
+                                        numSyllable -= GetSyllable(SuffixAppend.AsSpan().GetReversed().Span);
                                     }
                                     if (SuffixExtra)
                                     {
@@ -907,7 +897,7 @@ namespace WeCantSpell.Hunspell
                                             checkedSimplifiedTriple = true;
                                             i--; // check "fahrt" instead of "ahrt" in "Schiffahrt"
                                         }
-                                        else if (i > 2 && word[i - 1] == word[i - 2])
+                                        else if (i > 2 && HunspellTextFunctions.TestSimpleDoubleLetter(word.Span, i))
                                         {
                                             simplifiedTripple = true;
                                         }
@@ -991,7 +981,7 @@ namespace WeCantSpell.Hunspell
                                                 ||
                                                 scpd != 0
                                                 ||
-                                                !Affix.CompoundPatterns.Check(word, i, rvFirst, rv, false)
+                                                !Affix.CompoundPatterns.Check(word.Span, i, rvFirst, rv, false)
                                             )
                                             && // test CHECKCOMPOUNDPATTERN conditions
                                             (
@@ -1007,7 +997,7 @@ namespace WeCantSpell.Hunspell
 
                                             // forbid compound word, if it is a non compound word with typical fault
                                             var wordLenPrefix = word.Slice(0, Math.Min(word.Length, len));
-                                            return ((Affix.CheckCompoundRep && CompoundReplacementCheck(wordLenPrefix)) || CompoundWordPairCheck(wordLenPrefix))
+                                            return ((Affix.CheckCompoundRep && CompoundReplacementCheck(wordLenPrefix)) || CompoundWordPairCheck(wordLenPrefix.Span))
                                                 ? null
                                                 : rvFirst;
                                         }
@@ -1071,7 +1061,7 @@ namespace WeCantSpell.Hunspell
                                                 : (
                                                     Affix.CompoundPatterns.HasItems
                                                     &&
-                                                    Affix.CompoundPatterns.Check(word, i, rvFirst, rv, affixed)
+                                                    Affix.CompoundPatterns.Check(word.Span, i, rvFirst, rv, affixed)
                                                 )
                                             )
                                         )
@@ -1099,13 +1089,13 @@ namespace WeCantSpell.Hunspell
                                     if (Affix.IsHungarian)
                                     {
                                         // calculate syllable number of the word
-                                        numSyllable += GetSyllable(word.Slice(0, i));
+                                        numSyllable += GetSyllable(word.Slice(0, i).Span);
 
                                         // - affix syllable num.
                                         // XXX only second suffix (inflections, not derivations)
                                         if (SuffixAppend != null)
                                         {
-                                            numSyllable -= GetSyllable(SuffixAppend.AsSpan().Reversed());
+                                            numSyllable -= GetSyllable(SuffixAppend.AsSpan().GetReversed().Span);
                                         }
                                         if (SuffixExtra)
                                         {
@@ -1179,7 +1169,7 @@ namespace WeCantSpell.Hunspell
 
                                             // forbid compound word, if it is a non compound word with typical fault
                                             var wordLenPrefix = word.Slice(0, Math.Min(word.Length, len));
-                                            return ((Affix.CheckCompoundRep && CompoundReplacementCheck(wordLenPrefix)) || CompoundWordPairCheck(wordLenPrefix))
+                                            return ((Affix.CheckCompoundRep && CompoundReplacementCheck(wordLenPrefix)) || CompoundWordPairCheck(wordLenPrefix.Span))
                                                 ? null
                                                 : rvFirst;
                                         }
@@ -1191,14 +1181,14 @@ namespace WeCantSpell.Hunspell
                                     // perhaps second word is a compound word (recursive call)
                                     if (wordNum < maxwordnum)
                                     {
-                                        rv = CompoundCheck(st.GetTerminatedSpan().Slice(i), wordNum + 1, numSyllable, maxwordnum, words?.CreateIncremented(), rwords.CreateIncremented(), false, isSug, ref info);
+                                        rv = CompoundCheck(st.GetTerminatedMemory().Slice(i), wordNum + 1, numSyllable, maxwordnum, words?.CreateIncremented(), rwords.CreateIncremented(), false, isSug, ref info);
 
                                         if (
                                             rv != null
                                             &&
                                             Affix.CompoundPatterns.HasItems
                                             &&
-                                            (scpd != 0 ^ Affix.CompoundPatterns.Check(word, i, rvFirst, rv, affixed))
+                                            (scpd != 0 ^ Affix.CompoundPatterns.Check(word.Span, i, rvFirst, rv, affixed))
                                         )
                                         {
                                             rv = null;
@@ -1215,7 +1205,7 @@ namespace WeCantSpell.Hunspell
                                         // forbid compound word, if it is a non compound word with typical fault
 
                                         // or a dictionary word pair
-                                        if (CompoundWordPairCheck(wordLenPrefix))
+                                        if (CompoundWordPairCheck(wordLenPrefix.Span))
                                         {
                                             return null;
                                         }
@@ -1229,7 +1219,7 @@ namespace WeCantSpell.Hunspell
                                             }
 
                                             // check first part
-                                            if (word.Slice(i).StartsWith(rv.Word.AsSpan()))
+                                            if (word.Slice(i).Span.StartsWith(rv.Word.AsSpan()))
                                             {
                                                 var r = st[i + rv.Word.Length];
                                                 if (i + rv.Word.Length < st.BufferLength)
@@ -1237,8 +1227,8 @@ namespace WeCantSpell.Hunspell
                                                     st[i + rv.Word.Length] = '\0';
                                                 }
 
-                                                var stString = st.GetTerminatedSpan();
-                                                if ((Affix.CheckCompoundRep && CompoundReplacementCheck(stString)) || CompoundWordPairCheck(stString))
+                                                var stString = st.GetTerminatedMemory();
+                                                if ((Affix.CheckCompoundRep && CompoundReplacementCheck(stString)) || CompoundWordPairCheck(stString.Span))
                                                 {
                                                     if (i + rv.Word.Length < st.BufferLength)
                                                     {
@@ -1310,7 +1300,7 @@ namespace WeCantSpell.Hunspell
                         if (soldi != 0)
                         {
                             i = soldi;
-                            st.Assign(word);
+                            st.Assign(word.Span);
                             soldi = 0;
                         }
                         else
@@ -1331,7 +1321,7 @@ namespace WeCantSpell.Hunspell
             /// <summary>
             /// Check if word with affixes is correctly spelled.
             /// </summary>
-            private WordEntry AffixCheck(ReadOnlySpan<char> word, FlagValue needFlag, CompoundOptions inCompound) =>
+            private WordEntry AffixCheck(ReadOnlyMemory<char> word, FlagValue needFlag, CompoundOptions inCompound) =>
                 AffixCheck(word.ToString(), needFlag, inCompound);
 
             /// <summary>
@@ -1868,7 +1858,7 @@ namespace WeCantSpell.Hunspell
             /// <seealso cref="AffixConfig.CheckCompoundRep"/>
             /// <seealso cref="AffixConfig.Replacements"/>
             /// <seealso cref="WordList.AllReplacements"/>
-            private bool CompoundReplacementCheck(ReadOnlySpan<char> wordSlice)
+            private bool CompoundReplacementCheck(ReadOnlyMemory<char> wordSlice)
             {
                 if (wordSlice.Length < 2 || WordList.AllReplacements.IsEmpty)
                 {
@@ -1880,22 +1870,21 @@ namespace WeCantSpell.Hunspell
                     // use only available mid patterns
                     if (!string.IsNullOrEmpty(replacementEntry.Med))
                     {
-                        var rIndex = wordSlice.IndexOf(replacementEntry.Pattern.AsSpan());
+                        var rIndex = wordSlice.Span.IndexOf(replacementEntry.Pattern.AsSpan());
                         if (rIndex >= 0)
                         {
-                            var word = wordSlice.ToString();
                             var lenp = replacementEntry.Pattern.Length;
                             var replacement = replacementEntry.Med;
 
                             // search every occurence of the pattern in the word
                             do
                             {
-                                if (CandidateCheck(word.Replace(rIndex, lenp, replacement)))
+                                if (CandidateCheck(wordSlice.Replace(rIndex, lenp, replacement)))
                                 {
                                     return true;
                                 }
 
-                                rIndex = word.IndexOf(replacementEntry.Pattern, rIndex + 1, StringComparison.Ordinal);
+                                rIndex = wordSlice.Span.IndexOf(replacementEntry.Pattern.AsSpan(), rIndex + 1);
                             }
                             while (rIndex >= 0);
                         }
@@ -1919,7 +1908,7 @@ namespace WeCantSpell.Hunspell
                 {
                     candidate[i] = ' ';
                     wordSlice.Slice(i).CopyTo(candidate.AsSpan(i + 1));
-                    if (CandidateCheck(new string(candidate)))
+                    if (CandidateCheck(new string(candidate).AsMemory()))
                     {
                         return true;
                     }
@@ -2153,8 +2142,8 @@ namespace WeCantSpell.Hunspell
                 return null;
             }
 
-            private bool CandidateCheck(string word) =>
-                WordList.ContainsEntriesForRootWord(word.AsSpan()) || AffixCheck(word, default, CompoundOptions.Not) != null;
+            private bool CandidateCheck(ReadOnlyMemory<char> word) =>
+                WordList.ContainsEntriesForRootWord(word) || AffixCheck(word, default, CompoundOptions.Not) != null;
 
             /// <summary>
             /// Make a copy of <paramref name="src"/> and returns it
@@ -2171,24 +2160,24 @@ namespace WeCantSpell.Hunspell
             /// set the capitalization type (<paramref name="capType"/>) and
             /// return the length of the "cleaned" (and UTF-8 encoded) word
             /// </remarks>
-            protected ReadOnlySpan<char> CleanWord2(ReadOnlySpan<char> src, out CapitalizationType capType, out int abbv)
+            protected ReadOnlyMemory<char> CleanWord2(ReadOnlyMemory<char> src, out CapitalizationType capType, out int abbv)
             {
                 // first skip over any leading blanks
-                var qIndex = HunspellTextFunctions.CountMatchingFromLeft(src, ' ');
+                var qIndex = HunspellTextFunctions.CountMatchingFromLeft(src.Span, ' ');
 
                 // now strip off any trailing periods (recording their presence)
-                abbv = HunspellTextFunctions.CountMatchingFromRight(src, '.');
+                abbv = HunspellTextFunctions.CountMatchingFromRight(src.Span, '.');
 
                 var nl = src.Length - qIndex - abbv;
                 if (nl <= 0)
                 {
                     // if no characters are left it can't be capitalized
                     capType = CapitalizationType.None;
-                    return ReadOnlySpan<char>.Empty;
+                    return ReadOnlyMemory<char>.Empty;
                 }
 
                 var dest = src.Slice(qIndex, nl);
-                capType = HunspellTextFunctions.GetCapitalizationType(dest, TextInfo);
+                capType = HunspellTextFunctions.GetCapitalizationType(dest.Span, TextInfo);
                 return dest;
             }
 

@@ -223,14 +223,8 @@ namespace WeCantSpell.Hunspell
         private bool TryHandleParameterizedCommand(ReadOnlySpan<char> commandName, ReadOnlySpan<char> parameters)
         {
 #if DEBUG
-            if (commandName == null)
-            {
-                throw new ArgumentNullException(nameof(commandName));
-            }
-            if (parameters.IsEmpty)
-            {
-                throw new ArgumentException(nameof(parameters));
-            }
+            if (commandName == null) throw new ArgumentNullException(nameof(commandName));
+            if (parameters.IsEmpty) throw new ArgumentException(nameof(parameters));
 #endif
 
             var command = TryParseCommandKind(commandName);
@@ -586,7 +580,7 @@ namespace WeCantSpell.Hunspell
         {
             if (EnumEx.HasFlag(Builder.Options, AffixConfigOptions.ComplexPrefixes))
             {
-                parameterText = parameterText.Reversed();
+                parameterText = parameterText.GetReversed().Span;
             }
 
             var parts = new List<string>();

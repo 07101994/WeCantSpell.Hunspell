@@ -57,6 +57,19 @@ namespace WeCantSpell.Hunspell
             return appliedConversion;
         }
 
+        internal bool TryConvert(ReadOnlyMemory<char> text, out ReadOnlyMemory<char> converted)
+        {
+            if (text.Length == 0)
+            {
+                converted = ReadOnlyMemory<char>.Empty;
+                return false;
+            }
+
+            var appliedConversion = TryConvert_Internal(text.Span, out string convertedString);
+            converted = appliedConversion ? convertedString.AsMemory() : text;
+            return appliedConversion;
+        }
+
         internal bool TryConvert(ReadOnlySpan<char> text, out string converted)
         {
             if (text.Length == 0)
