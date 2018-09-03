@@ -657,7 +657,7 @@ namespace WeCantSpell.Hunspell
                     //if (!Affix.NoSplitSuggestions && slst.Count < MaxSuggestions && (!cpdSuggest || slst.Count < sugLimit))
                     if (!cpdSuggest || (!Affix.NoSplitSuggestions && slst.Count < sugLimit))
                     {
-                        goodSuggestion = TwoWords(slst, word.Span, cpdSuggest, goodSuggestion);
+                        goodSuggestion = TwoWords(slst, word, cpdSuggest, goodSuggestion);
                     }
 
                     if (CompoundSuggestTimeLimiter.QueryForExpiration())
@@ -1966,7 +1966,7 @@ namespace WeCantSpell.Hunspell
             /// Error if should have been two words.
             /// </summary>
             /// <returns>Trye if there is a dictionary word pair or there was already a good suggestion before calling.</returns>
-            private bool TwoWords(List<string> wlst, ReadOnlySpan<char> word, bool cpdSuggest, bool good)
+            private bool TwoWords(List<string> wlst, ReadOnlyMemory<char> word, bool cpdSuggest, bool good)
             {
                 if (word.Length < 3)
                 {
@@ -2120,14 +2120,8 @@ namespace WeCantSpell.Hunspell
                 return good;
             }
 
-            private bool CheckForbidden(ReadOnlySpan<char> word)
+            private bool CheckForbidden(ReadOnlyMemory<char> word)
             {
-#if DEBUG
-                if (word == null)
-                {
-                    throw new ArgumentNullException(nameof(word));
-                }
-#endif
                 var rv = LookupFirstDetail(word);
                 if (rv != null && rv.ContainsAnyFlags(Affix.NeedAffix, Affix.OnlyInCompound))
                 {

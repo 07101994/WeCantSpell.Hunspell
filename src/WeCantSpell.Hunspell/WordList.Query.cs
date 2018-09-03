@@ -565,7 +565,7 @@ namespace WeCantSpell.Hunspell
                             affixed = true;
 
                             {
-                                var searchEntryWord = st.GetTerminatedSpan();
+                                var searchEntryWord = st.GetTerminatedMemory();
 
                                 var searchEntryDetails = LookupDetails(searchEntryWord);
                                 if (searchEntryDetails.Length > 0)
@@ -1738,10 +1738,6 @@ namespace WeCantSpell.Hunspell
 #endif
             protected WordEntry LookupFirst(string word) => WordList.FindFirstEntryByRootWord(word);
 
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-            protected WordEntry LookupFirst(ReadOnlySpan<char> word) => WordList.FindFirstEntryByRootWord(word);
 
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1756,22 +1752,12 @@ namespace WeCantSpell.Hunspell
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-            protected WordEntryDetail[] LookupDetails(ReadOnlySpan<char> word) => WordList.FindEntryDetailsByRootWord(word);
-
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
             protected WordEntryDetail LookupFirstDetail(string word) => WordList.FindFirstEntryDetailByRootWord(word);
 
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
             protected WordEntryDetail LookupFirstDetail(ReadOnlyMemory<char> word) => WordList.FindFirstEntryDetailByRootWord(word);
-
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-            protected WordEntryDetail LookupFirstDetail(ReadOnlySpan<char> word) => WordList.FindFirstEntryDetailByRootWord(word);
 
             /// <summary>
             /// Compound check patterns.

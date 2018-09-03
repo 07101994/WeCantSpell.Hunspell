@@ -40,6 +40,7 @@ namespace WeCantSpell.Hunspell
             set { this[key.AsMemory()] = value; }
         }
 
+        [Obsolete]
         public WordEntryDetail[] this[ReadOnlySpan<char> key]
         {
             get => this[key.ToString()];
@@ -54,18 +55,18 @@ namespace WeCantSpell.Hunspell
 
         public void Add(string key, WordEntryDetail[] value) => Add(key.AsMemory(), value);
 
+        [Obsolete]
         public void Add(ReadOnlySpan<char> key, WordEntryDetail[] value) => Add(key.ToString(), value);
 
         public bool TryGetValue(ReadOnlyMemory<char> key, out WordEntryDetail[] value) => Hash.TryGetValue(key, out value);
 
         public bool TryGetValue(string key, out WordEntryDetail[] value) => TryGetValue(key.AsMemory(), out value);
 
-        public bool TryGetValue(ReadOnlySpan<char> key, out WordEntryDetail[] value) => TryGetValue(key.ToString(), out value);
-
         public bool ContainsKey(ReadOnlyMemory<char> key) => Hash.ContainsKey(key);
 
         public bool ContainsKey(string key) => ContainsKey(key.AsMemory());
 
+        [Obsolete]
         public bool ContainsKey(ReadOnlySpan<char> key) => Trie.ContainsKey(key);
 
         public Enumerator GetEnumerator() => GetEnumerator(maxDepth: -1);
@@ -86,7 +87,7 @@ namespace WeCantSpell.Hunspell
 
             Dictionary<ReadOnlyMemory<char>, WordEntryDetail[]>.Enumerator enumerator;
 
-            private int maxDepth;
+            readonly int maxDepth;
 
             public KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]> Current => enumerator.Current;
 
