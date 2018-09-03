@@ -88,13 +88,9 @@ namespace WeCantSpell.Hunspell
                     NGramRestrictedFlags = nGramRestrictedFlags,
                 };
 
-                if (EntryDetailsByRoot == null)
+                result.EntriesByRoot = new WordEntryDictionary();
+                if (EntryDetailsByRoot != null)
                 {
-                    result.EntriesByRoot = new StringTrie<WordEntryDetail[]>();
-                }
-                else
-                {
-                    result.EntriesByRoot = new StringTrie<WordEntryDetail[]>();
                     foreach (var pair in EntryDetailsByRoot)
                     {
                         result.EntriesByRoot.Add(pair.Key, pair.Value.ToArray());

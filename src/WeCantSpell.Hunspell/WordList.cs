@@ -89,7 +89,7 @@ namespace WeCantSpell.Hunspell
                 ? (WordEntryDetail[])FindEntryDetailsByRootWord(rootWord).Clone()
                 : ArrayEx<WordEntryDetail>.Empty;
 
-        private StringTrie<WordEntryDetail[]> EntriesByRoot { get; set; }
+        private WordEntryDictionary EntriesByRoot { get; set; }
 
         private FlagSet NGramRestrictedFlags { get; set; }
 
@@ -127,6 +127,14 @@ namespace WeCantSpell.Hunspell
                 : details[0].ToEntry(rootWord.ToString());
         }
 
+        internal WordEntry FindFirstEntryByRootWord(ReadOnlyMemory<char> rootWord)
+        {
+            var details = FindEntryDetailsByRootWord(rootWord);
+            return details.Length == 0
+                ? null
+                : details[0].ToEntry(rootWord.ToString());
+        }
+
         internal WordEntryDetail[] FindEntryDetailsByRootWord(string rootWord)
         {
             return (rootWord == null || !EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details))
@@ -135,6 +143,13 @@ namespace WeCantSpell.Hunspell
         }
 
         internal WordEntryDetail[] FindEntryDetailsByRootWord(ReadOnlySpan<char> rootWord)
+        {
+            return !EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details)
+                ? ArrayEx<WordEntryDetail>.Empty
+                : details;
+        }
+
+        internal WordEntryDetail[] FindEntryDetailsByRootWord(ReadOnlyMemory<char> rootWord)
         {
             return !EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details)
                 ? ArrayEx<WordEntryDetail>.Empty
@@ -153,6 +168,13 @@ namespace WeCantSpell.Hunspell
         }
 
         internal WordEntryDetail FindFirstEntryDetailByRootWord(ReadOnlySpan<char> rootWord)
+        {
+            return EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details) && details.Length != 0
+                ? details[0]
+                : null;
+        }
+
+        internal WordEntryDetail FindFirstEntryDetailByRootWord(ReadOnlyMemory<char> rootWord)
         {
             return EntriesByRoot.TryGetValue(rootWord, out WordEntryDetail[] details) && details.Length != 0
                 ? details[0]
@@ -182,7 +204,7 @@ namespace WeCantSpell.Hunspell
 
             public class Enumerator : IEnumerator<KeyValuePair<ReadOnlyMemory<char>, WordEntryDetail[]>>
             {
-                public Enumerator(StringTrie<WordEntryDetail[]> entriesByRoot, Dictionary<string, WordEntryDetail[]> nGramRestrictedDetails, Func<ReadOnlyMemory<char>, bool> rootKeyFilter, int maxDepth)
+                public Enumerator(WordEntryDictionary entriesByRoot, Dictionary<string, WordEntryDetail[]> nGramRestrictedDetails, Func<ReadOnlyMemory<char>, bool> rootKeyFilter, int maxDepth)
                 {
                     coreEnumerator = entriesByRoot.GetEnumerator(maxDepth);
                     this.entriesByRoot = entriesByRoot;
@@ -192,8 +214,8 @@ namespace WeCantSpell.Hunspell
                     requiresNGramFiltering = nGramRestrictedDetails != null && nGramRestrictedDetails.Count != 0;
                 }
 
-                StringTrie<WordEntryDetail[]>.Enumerator coreEnumerator;
-                StringTrie<WordEntryDetail[]> entriesByRoot;
+                WordEntryDictionary.Enumerator coreEnumerator;
+                WordEntryDictionary entriesByRoot;
                 Dictionary<string, WordEntryDetail[]> nGramRestrictedDetails;
                 Func<ReadOnlyMemory<char>, bool> rootKeyFilter;
                 int maxDepth;

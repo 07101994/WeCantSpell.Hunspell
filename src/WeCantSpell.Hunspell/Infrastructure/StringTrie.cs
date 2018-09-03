@@ -1,18 +1,14 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace WeCantSpell.Hunspell.Infrastructure
 {
-    public class StringTrie<TValue> : IEnumerable<KeyValuePair<ReadOnlyMemory<char>, TValue>>
+    sealed class StringTrie<TValue> : IEnumerable<KeyValuePair<ReadOnlyMemory<char>, TValue>>
     {
         public StringTrie()
         {
-            root = new Node
-            {
-                KeySequence = ReadOnlyMemory<char>.Empty
-            };
+            root = new Node(ReadOnlyMemory<char>.Empty, 0, default);
         }
 
         private Node root;
@@ -134,21 +130,19 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 var depth = searchKeyIndex + 1;
                 var keySlice = key.Slice(0, depth);
                 ref readonly var keyValue = ref key.Span[searchKeyIndex];
-                var childNode = node.GetChildOrDefault(keyValue);
-
-                // TODO: see if keyslice can overwrite some smaller matching slices to save memory
-
-                if (childNode == null)
+                var childNodeIndex = node.FindChildIndex(keyValue);
+                if (childNodeIndex >= 0)
                 {
-                    childNode = new Node
-                    {
-                        KeySequence = keySlice,
-                        Depth = depth
-                    };
-                    node.AddChild(keyValue, childNode);
+                    node = node.Children[childNodeIndex];
                 }
+                else
+                {
+                    // TODO: see if keyslice can overwrite some smaller matching slices to save memory
 
-                node = childNode;
+                    var childNode = new Node(keySequence: keySlice, depth: depth, keyValue: keyValue);
+                    node.InsertChild(~childNodeIndex, childNode);
+                    node = childNode;
+                }
             }
 
             node.SetValue(value);
@@ -252,12 +246,10 @@ namespace WeCantSpell.Hunspell.Infrastructure
                     return true;
                 }
 
-                if ((maxDepth == -1 || Current.Depth <= maxDepth) && Current.Children != null)
+                if ((maxDepth == -1 || Current.Depth <= maxDepth) && Current.HasChildren)
                 {
-                    if (HandleChildNodes())
-                    {
-                        return true;
-                    }
+                    HandleChildNodes();
+                    return true;
                 }
 
                 if (visitQueue.Count != 0)
@@ -271,35 +263,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return false;
             }
 
-            private bool HandleChildNodes()
+            private void HandleChildNodes()
             {
-                var childCount = Current.Children.Count;
-                if (childCount != 0)
+                var children = Current.Children;
+                if (children.Length > 5)
                 {
-                    // TODO: may need to order these for alphabetical ordering
-                    using (var childrenEnumerator = Current.Children.Values.GetEnumerator())
-                    {
-                        if (childrenEnumerator.MoveNext())
-                        {
-                            Current = childrenEnumerator.Current;
-
-                            if (childCount > 5)
-                            {
-                                visitQueue.PrepareCapacity(visitQueue.Count + childCount - 1);
-                            }
-
-                            while (childrenEnumerator.MoveNext())
-                            {
-                                // TODO: may need to order these (in reverse) for alphabetical ordering
-                                visitQueue.Add(childrenEnumerator.Current);
-                            }
-
-                            return true;
-                        }
-                    }
+                    visitQueue.PrepareCapacity(visitQueue.Count + children.Length - 1);
                 }
 
-                return false;
+                // TODO: may need to order these (in reverse) for alphabetical ordering
+                visitQueue.AddRange(new ArraySegment<Node>(children, 1, children.Length - 1));
+
+                Current = children[0];
             }
 
             public void Reset()
@@ -317,26 +292,50 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
+        private readonly struct NodeKeyComparable : IComparable<Node>
+        {
+            public NodeKeyComparable(char key)
+            {
+                Key = key;
+            }
+
+            public readonly char Key;
+
+            public int CompareTo(Node other) => Key.CompareTo(other.KeyValue);
+        }
+
         internal sealed class Node
         {
             public ReadOnlyMemory<char> KeySequence;
-            public Dictionary<char, Node> Children;
+            public Node[] Children;
             public int Depth;
             public TValue Value;
+            public char KeyValue;
             public bool HasValue;
 
-            public bool HasChildren => Children != null && Children.Count != 0;
+            public Node(ReadOnlyMemory<char> keySequence, int depth, char keyValue)
+            {
+                KeySequence = keySequence;
+                Depth = depth;
+                KeyValue = keyValue;
+            }
 
-            public char KeyValue => KeySequence.Span.LastOrDefault();
+            public bool HasChildren => Children != null && Children.Length != 0;
 
             public Node FindChild(char key)
             {
-                if (Children != null && Children.TryGetValue(key, out var child))
+                var index = FindChildIndex(key);
+                return index < 0 ? default : Children[index];
+            }
+
+            public int FindChildIndex(char key)
+            {
+                if (Children != null && Children.Length != 0)
                 {
-                    return child;
+                    return Children.AsSpan().BinarySearch(new NodeKeyComparable(key));
                 }
 
-                return null;
+                return -1;
             }
 
             public void SetValue(TValue value)
@@ -345,24 +344,26 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 HasValue = true;
             }
 
-            public Node GetChildOrDefault(char key)
-            {
-                if (Children != null && Children.TryGetValue(key, out var child))
-                {
-                    return child;
-                }
-
-                return null;
-            }
-
-            public void AddChild(char key, Node childNode)
+            public void InsertChild(int index, Node childNode)
             {
                 if (Children == null)
                 {
-                    Children = new Dictionary<char, Node>();
+                    Children = new [] { childNode };
+                    return;
                 }
 
-                Children[key] = childNode;
+                var newChildren = new Node[Children.Length + 1];
+                if (index > 0)
+                {
+                    Children.AsSpan(0, index).CopyTo(newChildren.AsSpan());
+                }
+                newChildren[index] = childNode;
+                if (index < Children.Length)
+                {
+                    Children.AsSpan(index).CopyTo(newChildren.AsSpan(index + 1));
+                }
+
+                Children = newChildren;
             }
         }
     }
