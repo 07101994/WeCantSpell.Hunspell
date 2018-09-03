@@ -5,17 +5,27 @@ namespace WeCantSpell.Hunspell.Infrastructure
 {
     sealed class TextMemoryComparer :
         IEqualityComparer<ReadOnlyMemory<char>>,
-        IComparer<ReadOnlyMemory<char>>
+        IEqualityComparer<Memory<char>>,
+        IComparer<ReadOnlyMemory<char>>,
+        IComparer<Memory<char>>
     {
+        public static readonly TextMemoryComparer Default = new TextMemoryComparer();
+
         public int Compare(ReadOnlyMemory<char> x, ReadOnlyMemory<char> y) => Compare(x.Span, y.Span);
+
+        public int Compare(Memory<char> x, Memory<char> y) => Compare(x.Span, y.Span);
 
         public int Compare(ReadOnlySpan<char> x, ReadOnlySpan<char> y) => x.SequenceCompareTo(y);
 
         public bool Equals(ReadOnlyMemory<char> x, ReadOnlyMemory<char> y) => Equals(x.Span, y.Span);
 
+        public bool Equals(Memory<char> x, Memory<char> y) => Equals(x.Span, y.Span);
+
         public bool Equals(ReadOnlySpan<char> x, ReadOnlySpan<char> y) => x.SequenceEqual(y);
 
         public int GetHashCode(ReadOnlyMemory<char> obj) => GetHashCode(obj.Span);
+
+        public int GetHashCode(Memory<char> obj) => GetHashCode(obj.Span);
 
         public int GetHashCode(ReadOnlySpan<char> obj)
         {

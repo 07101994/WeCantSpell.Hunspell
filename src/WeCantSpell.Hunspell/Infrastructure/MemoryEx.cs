@@ -31,6 +31,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return result;
         }
 
+        public static int IndexOf(this Span<char> @this, ReadOnlySpan<char> value, int startIndex)
+        {
+            var result = @this.Slice(startIndex).IndexOf(value);
+            if (result >= 0)
+            {
+                result += startIndex;
+            }
+
+            return result;
+        }
+
         public static int IndexOfAny(this ReadOnlySpan<char> @this, char value0, char value1, int startIndex)
         {
             var result = @this.Slice(startIndex).IndexOfAny(value0, value1);
@@ -364,6 +375,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
             builder.Append(char2);
             builder.Append(str3);
             return StringBuilderPool.GetStringAndReturn(builder);
+        }
+
+        public static Memory<char> Concat(this Memory<char> @this, char c) => Concat(@this.Span, c);
+
+        public static Memory<char> Concat(this ReadOnlyMemory<char> @this, char c) => Concat(@this.Span, c);
+
+        public static Memory<char> Concat(this ReadOnlySpan<char> @this, char c)
+        {
+            var buffer = new char[@this.Length + 1].AsMemory();
+            @this.CopyTo(buffer.Span);
+            buffer.Span[@this.Length] = c;
+            return buffer;
         }
     }
 }

@@ -424,17 +424,17 @@ namespace WeCantSpell.Hunspell
                         var sitem = slst[j];
                         if (!sitem.Contains(' ') && !Check(sitem))
                         {
-                            var s = HunspellTextFunctions.MakeAllSmall(sitem, TextInfo);
+                            var s = HunspellTextFunctions.CopyAsSmall(sitem.AsSpan(), Affix.Culture);
                             if (Check(s))
                             {
-                                slst[l++] = s;
+                                slst[l++] = s.ToString();
                             }
                             else
                             {
-                                s = HunspellTextFunctions.MakeInitCap(s, TextInfo);
+                                HunspellTextFunctions.ApplyInitCap(s, TextInfo);
                                 if (Check(s))
                                 {
-                                    slst[l++] = s;
+                                    slst[l++] = s.ToString();
                                 }
                             }
                         }

@@ -125,46 +125,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static bool CharIsNotNeutral(char c, TextInfo textInfo) =>
             (c < 127 || textInfo.ToUpper(c) != c) && char.IsLower(c);
 
-        public static string RemoveChars(this string @this, CharacterSet chars)
-        {
-#if DEBUG
-            if (@this == null) throw new ArgumentNullException(nameof(@this));
-            if (chars == null) throw new ArgumentNullException(nameof(chars));
-#endif
-
-            if (@this.Length == 0 || chars.IsEmpty)
-            {
-                return @this;
-            }
-
-            var thisSpan = @this.AsSpan();
-            var index = thisSpan.IndexOfAny(chars);
-            if (index < 0)
-            {
-                return @this;
-            }
-
-            var lastIndex = thisSpan.Length - 1;
-            if (index == lastIndex)
-            {
-                return @this.Substring(0, lastIndex);
-            }
-
-            var builder = StringBuilderPool.Get(lastIndex);
-            builder.Append(thisSpan.Slice(0, index));
-            index++;
-            for (; index < thisSpan.Length; index++)
-            {
-                ref readonly var c = ref thisSpan[index];
-                if (!chars.Contains(c))
-                {
-                    builder.Append(c);
-                }
-            }
-
-            return StringBuilderPool.GetStringAndReturn(builder);
-        }
-
         public static string MakeInitCap(string s, TextInfo textInfo)
         {
 #if DEBUG
@@ -188,8 +148,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return expectedFirstLetter.ToString();
             }
 
-            var builder = StringBuilderPool.Get(s);
-            builder[0] = expectedFirstLetter;
+            var builder = StringBuilderPool.Get(s.Length);
+            builder.Append(expectedFirstLetter);
+            builder.Append(s, 1, s.Length - 1);
             return StringBuilderPool.GetStringAndReturn(builder);
         }
 
@@ -218,6 +179,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
             var builder = StringBuilderPool.Get(s);
             builder[0] = expectedFirstLetter;
             return StringBuilderPool.GetStringAndReturn(builder);
+        }
+
+        public static void ApplyInitCap(Memory<char> s, TextInfo textInfo)
+        {
+#if DEBUG
+            if (textInfo == null) throw new ArgumentNullException(nameof(textInfo));
+#endif
+            if (!s.IsEmpty)
+            {
+                ref var firstChar = ref s.Span[0];
+                firstChar = textInfo.ToUpper(firstChar);
+            }
         }
 
         public static ReadOnlyMemory<char> MakeInitCap(ReadOnlyMemory<char> s, TextInfo textInfo)
@@ -282,6 +255,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
 #endif
             var buffer = new char[s.Length].AsSpan();
             s.ToLower(buffer, culture);
+            return buffer;
+        }
+
+        public static Memory<char> CopyAsSmall(ReadOnlySpan<char> s, CultureInfo culture)
+        {
+#if DEBUG
+            if (culture == null) throw new ArgumentNullException(nameof(culture));
+#endif
+
+            var buffer = new char[s.Length].AsMemory();
+            s.ToLower(buffer.Span, culture);
             return buffer;
         }
 

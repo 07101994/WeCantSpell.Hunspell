@@ -206,7 +206,7 @@ namespace WeCantSpell.Hunspell
 
                 if (abbv != 0)
                 {
-                    rv = CheckWord(scw.Span.ConcatString('.'), ref resultType, out root);
+                    rv = CheckWord(scw.Concat('.'), ref resultType, out root);
                     if (rv != null)
                     {
                         return rv;
@@ -215,52 +215,56 @@ namespace WeCantSpell.Hunspell
 
                 // Spec. prefix handling for Catalan, French, Italian:
                 // prefixes separated by apostrophe (SANT'ELIA -> Sant'+Elia).
-                var textInfo = TextInfo;
                 var apos = scw.Span.IndexOf('\'');
                 if (apos >= 0)
                 {
-                    scw = HunspellTextFunctions.MakeAllSmall(scw, Affix.Culture);
+                    var mutableScw = HunspellTextFunctions.CopyAsSmall(scw.Span, Affix.Culture);
 
                     // conversion may result in string with different len than before MakeAllSmall2 so re-scan
-                    if (apos < scw.Length - 1)
+                    if (apos < mutableScw.Length - 1)
                     {
-                        scw = scw.Slice(0, apos + 1).Span.ConcatString(HunspellTextFunctions.MakeInitCap(scw.Slice(apos + 1).Span, textInfo)).AsMemory();
-                        rv = CheckWord(scw, ref resultType, out root);
+                        HunspellTextFunctions.ApplyInitCap(mutableScw.Slice(apos + 1), TextInfo);
+                        rv = CheckWord(mutableScw, ref resultType, out root);
                         if (rv != null)
                         {
                             return rv;
                         }
 
-                        scw = HunspellTextFunctions.MakeInitCap(scw.Span, textInfo).AsMemory();
-                        rv = CheckWord(scw, ref resultType, out root);
+                        HunspellTextFunctions.ApplyInitCap(mutableScw, TextInfo);
+                        rv = CheckWord(mutableScw, ref resultType, out root);
                         if (rv != null)
                         {
                             return rv;
                         }
                     }
+
+                    scw = mutableScw;
                 }
 
                 if (Affix.CheckSharps && scw.Span.Contains("SS".AsSpan()))
                 {
-                    scw = HunspellTextFunctions.MakeAllSmall(scw, Affix.Culture);
-                    var u8buffer = scw;
+                    var mutableScw = HunspellTextFunctions.CopyAsSmall(scw.Span, Affix.Culture);
+
+                    var u8buffer = mutableScw;
                     rv = SpellSharps(ref u8buffer, ref resultType, out root);
                     if (rv == null)
                     {
-                        scw = HunspellTextFunctions.MakeInitCap(scw, textInfo);
-                        rv = SpellSharps(ref scw, ref resultType, out root);
+                        HunspellTextFunctions.ApplyInitCap(mutableScw, TextInfo);
+                        rv = SpellSharps(ref mutableScw, ref resultType, out root);
                     }
 
                     if (abbv != 0 && rv == null)
                     {
-                        u8buffer = u8buffer.Span.ConcatString('.').AsMemory();
+                        u8buffer = u8buffer.Concat('.');
                         rv = SpellSharps(ref u8buffer, ref resultType, out root);
                         if (rv == null)
                         {
-                            u8buffer = scw.Span.ConcatString('.').AsMemory();
+                            u8buffer = mutableScw.Concat('.');
                             rv = SpellSharps(ref u8buffer, ref resultType, out root);
                         }
                     }
+
+                    scw = mutableScw;
                 }
 
                 return rv;
@@ -356,21 +360,21 @@ namespace WeCantSpell.Hunspell
             /// <summary>
             /// Recursive search for right ss - sharp s permutations
             /// </summary>
-            private WordEntry SpellSharps(ref ReadOnlyMemory<char> @base, ref SpellCheckResultType info, out string root) =>
+            private WordEntry SpellSharps(ref Memory<char> @base, ref SpellCheckResultType info, out string root) =>
                 SpellSharps(ref @base, 0, 0, 0, ref info, out root);
 
             /// <summary>
             /// Recursive search for right ss - sharp s permutations
             /// </summary>
-            private WordEntry SpellSharps(ref ReadOnlyMemory<char> @base, int nPos, int n, int repNum, ref SpellCheckResultType info, out string root)
+            private WordEntry SpellSharps(ref Memory<char> @base, int nPos, int n, int repNum, ref SpellCheckResultType info, out string root)
             {
                 var pos = @base.Span.IndexOf("ss".AsSpan(), nPos);
                 if (pos >= 0 && n < MaxSharps)
                 {
-                    var baseBuilder = StringBuilderPool.Get(@base);
-                    baseBuilder[pos] = 'ß';
-                    baseBuilder.Remove(pos + 1, 1);
-                    @base = baseBuilder.ToString().AsMemory();
+                    var buffer = @base.ToArray();
+                    buffer[pos] = 'ß';
+                    buffer.AsSpan(pos + 2).CopyTo(buffer.AsSpan(pos + 1));
+                    @base = buffer.AsMemory(0, buffer.Length - 1);
 
                     var h = SpellSharps(ref @base, pos + 1, n + 1, repNum + 1, ref info, out root);
                     if (h != null)
@@ -378,11 +382,10 @@ namespace WeCantSpell.Hunspell
                         return h;
                     }
 
-                    baseBuilder.Clear();
-                    baseBuilder.Append(@base);
-                    baseBuilder[pos] = 's';
-                    baseBuilder.Insert(pos + 1, 's');
-                    @base = StringBuilderPool.GetStringAndReturn(baseBuilder).AsMemory();
+                    buffer.AsSpan(pos + 1, buffer.Length - pos - 2).CopyTo(buffer.AsSpan(pos + 2));
+                    buffer[pos] = 's';
+                    buffer[pos + 1] = 's';
+                    @base = buffer.AsMemory();
 
                     h = SpellSharps(ref @base, pos + 2, n + 1, repNum, ref info, out root);
                     if (h != null)
