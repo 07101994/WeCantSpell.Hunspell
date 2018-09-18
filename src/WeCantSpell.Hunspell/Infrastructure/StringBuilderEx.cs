@@ -45,20 +45,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return @this.ToString(startIndex, terminatedIndex - startIndex);
         }
 
-        public static int IndexOfNullChar(this StringBuilder @this)
-        {
-            for (var i = 0; i < @this.Length; i++)
-            {
-                if (@this[i] == '\0')
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        public static int IndexOfNullChar(this StringBuilder @this, int offset)
+        public static int IndexOfNullChar(this StringBuilder @this, int offset = 0)
         {
             for (; offset < @this.Length; offset++)
             {
@@ -100,11 +87,10 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return;
             }
 
-            var swapOtherIndexOffset = @this.Length - 1;
             var stopIndex = @this.Length / 2;
-            for (var i = 0; i < stopIndex; i++)
+            for (int i = 0, otherI = @this.Length - 1; i < stopIndex; i++, otherI--)
             {
-                @this.Swap(i, swapOtherIndexOffset - i);
+                @this.Swap(i, otherI);
             }
         }
 
@@ -138,24 +124,26 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static string ToStringWithInsert(this StringBuilder builder, int index, char value)
         {
 #if DEBUG
-            if (index < 0 || index > builder.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
+            if (index < 0 || index > builder.Length) throw new ArgumentOutOfRangeException(nameof(index));
 #endif
+
+            var buffer = new char[builder.Length + 1];
+            buffer[index] = value;
+
             if (index == 0)
             {
-                return value.ToString() + builder.ToString();
+                builder.CopyTo(0, buffer, 1, builder.Length);
             }
-
-            if (index == builder.Length)
+            else
             {
-                return builder.ToString() + value.ToString();
+                builder.CopyTo(0, buffer, 0, index);
+                if (index != builder.Length)
+                {
+                    builder.CopyTo(index, buffer, index + 1, builder.Length - index);
+                }
             }
 
-            return builder.ToString(0, index)
-                + value.ToString()
-                + builder.ToString(index, builder.Length - index);
+            return new string(buffer);
         }
 
         public static StringBuilder Append(this StringBuilder builder, ReadOnlySpan<char> value)

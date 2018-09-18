@@ -56,17 +56,19 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return @this;
             }
 
-            using (var mo = MemoryPool<char>.Shared.Rent(@this.Length))
+            var result = @this.AsSpan().ToString();
+            var indexLimit = result.Length / 2;
+            unsafe
             {
-                var buffer = mo.Memory.Span.Slice(0, @this.Length);
-                var lastIndex = @this.Length - 1;
-                for (var i = 0; i < buffer.Length; i++)
+                fixed (char* p = result)
                 {
-                    buffer[i] = @this[lastIndex - i];
+                    for (int i = 0, otherI = result.Length - 1; i < indexLimit; i++, otherI--)
+                    {
+                        ReferenceHelpers.Swap(ref p[i], ref p[otherI]);
+                    }
                 }
-                
-                return buffer.ToString();
             }
+            return result;
         }
 
         public static bool Contains(this string @this, char value) => @this.IndexOf(value) >= 0;
