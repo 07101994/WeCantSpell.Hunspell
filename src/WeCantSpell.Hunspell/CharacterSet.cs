@@ -1,17 +1,12 @@
 ﻿using System;
 using WeCantSpell.Hunspell.Infrastructure;
-
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
+using System.Collections.Generic;
 
 namespace WeCantSpell.Hunspell
 {
     public sealed class CharacterSet : ArrayWrapper<char>
     {
         public static readonly CharacterSet Empty = new CharacterSet(ArrayEx<char>.Empty);
-
-        public static readonly ArrayWrapperComparer<char, CharacterSet> DefaultComparer = new ArrayWrapperComparer<char, CharacterSet>();
 
         public static CharacterSet Create(string values) => values == null ? Empty : TakeArray(values.ToCharArray());
 
@@ -49,9 +44,38 @@ namespace WeCantSpell.Hunspell
             &&
             Array.BinarySearch(items, value) >= 0;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public string GetCharactersAsString() => new string(items);
+
+        public sealed class Comparer : IEqualityComparer<CharacterSet>
+        {
+            public static readonly Comparer Default = new Comparer();
+
+            public bool Equals(CharacterSet x, CharacterSet y) => SequenceEquals(x, y);
+
+            public int GetHashCode(CharacterSet obj) => ArrayEx<char>.GetHashCode(obj.items);
+
+            public static bool SequenceEquals(CharacterSet x, CharacterSet y)
+            {
+                if (x is null)
+                {
+                    return y is null;
+                }
+
+                if (y is null)
+                {
+                    return false;
+                }
+
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+
+                return SequenceEquals(x.items, y.items);
+            }
+
+            internal static bool SequenceEquals(char[] x, char[] y) =>
+                x.Length == y.Length && x.AsSpan().SequenceEqual(y.AsSpan());
+        }
     }
 }

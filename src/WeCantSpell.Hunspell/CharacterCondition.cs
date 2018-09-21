@@ -54,10 +54,7 @@ namespace WeCantSpell.Hunspell
         private static CharacterCondition ParseSingle(ReadOnlySpan<char> text)
         {
 #if DEBUG
-            if (text == null)
-            {
-                throw new ArgumentNullException(nameof(text));
-            }
+            if (text == null) throw new ArgumentNullException(nameof(text));
 #endif
 
             if (text.Length == 0)
@@ -137,12 +134,10 @@ namespace WeCantSpell.Hunspell
         public override string ToString() => GetEncoded();
 
         public bool Equals(CharacterCondition other) =>
-            Restricted == other.Restricted && CharacterSet.DefaultComparer.Equals(Characters, other.Characters);
+            Restricted == other.Restricted && CharacterSet.Comparer.SequenceEquals(Characters, other.Characters);
 
-        public override bool Equals(object obj) =>
-            obj is CharacterCondition cc && Equals(cc);
+        public override bool Equals(object obj) => obj is CharacterCondition cc && Equals(cc);
 
-        public override int GetHashCode() =>
-            unchecked((Restricted.GetHashCode() * 149) ^ CharacterSet.DefaultComparer.GetHashCode(Characters));
+        public override int GetHashCode() => CharacterSet.Comparer.Default.GetHashCode(Characters);
     }
 }

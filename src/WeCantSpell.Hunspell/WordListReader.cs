@@ -357,7 +357,7 @@ namespace WeCantSpell.Hunspell
 
                 if (morphs.Length != 0 && !Affix.IsAliasM)
                 {
-                    morphs = MorphSet.CreateReversed(morphs);
+                    MorphSet.ApplyReverseInPlace(morphs);
                 }
             }
 

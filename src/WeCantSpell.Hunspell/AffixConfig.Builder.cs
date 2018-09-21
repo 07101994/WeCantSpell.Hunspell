@@ -33,11 +33,11 @@ namespace WeCantSpell.Hunspell
 
             public Builder()
             {
-                FlagSetDeduper = new Deduper<FlagSet>(FlagSet.DefaultComparer);
+                FlagSetDeduper = new Deduper<FlagSet>(FlagSet.Comparer.Default);
                 FlagSetDeduper.Add(FlagSet.Empty);
-                MorphSetDeduper = new Deduper<MorphSet>(MorphSet.DefaultComparer);
+                MorphSetDeduper = new Deduper<MorphSet>(MorphSet.Comparer.Default);
                 MorphSetDeduper.Add(MorphSet.Empty);
-                CharacterConditionGroupDeduper = new Deduper<CharacterConditionGroup>(CharacterConditionGroup.DefaultComparer);
+                CharacterConditionGroupDeduper = new Deduper<CharacterConditionGroup>(CharacterConditionGroup.Comparer.Default);
                 CharacterConditionGroupDeduper.Add(CharacterConditionGroup.Empty);
                 CharacterConditionGroupDeduper.Add(CharacterConditionGroup.AllowAnySingleCharacter);
                 StringDeduper = new StringDeduper();

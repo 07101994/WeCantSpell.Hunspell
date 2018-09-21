@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using WeCantSpell.Hunspell.Infrastructure;
 
 namespace WeCantSpell.Hunspell
@@ -8,8 +9,6 @@ namespace WeCantSpell.Hunspell
         public static readonly CharacterConditionGroup Empty = TakeArray(ArrayEx<CharacterCondition>.Empty);
 
         public static readonly CharacterConditionGroup AllowAnySingleCharacter = Create(CharacterCondition.AllowAny);
-
-        public static readonly ArrayWrapperComparer<CharacterCondition, CharacterConditionGroup> DefaultComparer = new ArrayWrapperComparer<CharacterCondition, CharacterConditionGroup>();
 
         public static CharacterConditionGroup Create(CharacterCondition condition) => TakeArray(new[] { condition });
 
@@ -89,6 +88,48 @@ namespace WeCantSpell.Hunspell
             }
 
             return true;
+        }
+
+        public sealed class Comparer : IEqualityComparer<CharacterConditionGroup>
+        {
+            public static readonly Comparer Default = new Comparer();
+
+            public bool Equals(CharacterConditionGroup x, CharacterConditionGroup y) => SequenceEquals(x, y);
+
+            public int GetHashCode(CharacterConditionGroup obj) => ArrayEx<CharacterCondition>.GetHashCode(obj.items);
+
+            public static bool SequenceEquals(CharacterConditionGroup x, CharacterConditionGroup y)
+            {
+                if (x is null)
+                {
+                    return y is null;
+                }
+
+                if (y is null)
+                {
+                    return false;
+                }
+
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+
+                return SequenceEquals(x.items, y.items);
+            }
+
+            internal static bool SequenceEquals(CharacterCondition[] x, CharacterCondition[] y)
+            {
+                for (var i = 0; i < x.Length; i++)
+                {
+                    if (!x[i].Equals(y[i]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         }
     }
 }

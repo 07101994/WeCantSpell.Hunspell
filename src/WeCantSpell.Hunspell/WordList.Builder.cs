@@ -21,9 +21,9 @@ namespace WeCantSpell.Hunspell
             internal Builder(AffixConfig affix, Deduper<FlagSet> flagSetDeduper, Deduper<MorphSet> morphSet)
             {
                 Affix = affix;
-                FlagSetDeduper = flagSetDeduper ?? new Deduper<FlagSet>(FlagSet.DefaultComparer);
+                FlagSetDeduper = flagSetDeduper ?? new Deduper<FlagSet>(FlagSet.Comparer.Default);
                 FlagSetDeduper.Add(FlagSet.Empty);
-                MorphSetDeduper = morphSet ?? new Deduper<MorphSet>(MorphSet.DefaultComparer);
+                MorphSetDeduper = morphSet ?? new Deduper<MorphSet>(MorphSet.Comparer.Default);
                 MorphSetDeduper.Add(MorphSet.Empty);
                 WordEntryDetailDeduper = new Deduper<WordEntryDetail>(EqualityComparer<WordEntryDetail>.Default);
                 WordEntryDetailDeduper.Add(WordEntryDetail.Default);

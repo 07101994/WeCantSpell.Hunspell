@@ -13,8 +13,6 @@ namespace WeCantSpell.Hunspell
     {
         public static readonly FlagSet Empty = new FlagSet(ArrayEx<FlagValue>.Empty);
 
-        public static readonly ArrayWrapperComparer<FlagValue, FlagSet> DefaultComparer = new ArrayWrapperComparer<FlagValue, FlagSet>();
-
         public static FlagSet Create(IEnumerable<FlagValue> given) =>
             given == null ? Empty : TakeArray(given.Distinct().ToArray());
 
@@ -133,18 +131,42 @@ namespace WeCantSpell.Hunspell
         public bool ContainsAny(FlagValue a, FlagValue b, FlagValue c, FlagValue d) =>
             HasItems && (Contains(a) || Contains(b) || Contains(c) || Contains(d));
 
-        public bool Equals(FlagSet other) =>
-            !ReferenceEquals(other, null)
-            &&
-            (
-                ReferenceEquals(this, other)
-                || ArrayComparer<FlagValue>.Default.Equals(other.items, items)
-            );
+        public bool Equals(FlagSet other) => !(other is null) && Comparer.SequenceEquals(other.items, items);
 
-        public override bool Equals(object obj) =>
-             Equals(obj as FlagSet);
+        public override bool Equals(object obj) => Equals(obj as FlagSet);
 
-        public override int GetHashCode() =>
-            ArrayComparer<FlagValue>.Default.GetHashCode(items);
+        public override int GetHashCode() => ArrayEx<FlagValue>.GetHashCode(items);
+
+        public sealed class Comparer : IEqualityComparer<FlagSet>
+        {
+            public static readonly Comparer Default = new Comparer();
+
+            public bool Equals(FlagSet x, FlagSet y) => SequenceEquals(x, y);
+
+            public int GetHashCode(FlagSet obj) => ArrayEx<FlagValue>.GetHashCode(obj.items);
+
+            public static bool SequenceEquals(FlagSet x, FlagSet y)
+            {
+                if (x is null)
+                {
+                    return y is null;
+                }
+
+                if (y is null)
+                {
+                    return false;
+                }
+
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+
+                return SequenceEquals(x.items, y.items);
+            }
+
+            internal static bool SequenceEquals(FlagValue[] x, FlagValue[] y) =>
+                x.Length == y.Length && x.AsSpan().SequenceEqual(y.AsSpan());
+        }
     }
 }

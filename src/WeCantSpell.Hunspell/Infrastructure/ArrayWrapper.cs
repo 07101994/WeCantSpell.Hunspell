@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace WeCantSpell.Hunspell.Infrastructure
 {
-    public class ArrayWrapper<T> : IReadOnlyList<T>
+    public abstract class ArrayWrapper<T> : IReadOnlyList<T>
     {
         protected ArrayWrapper(T[] items)
         {
@@ -26,37 +27,8 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public ReadOnlySpan<T>.Enumerator GetEnumerator() => new ReadOnlySpan<T>(items).GetEnumerator();
 
-        IEnumerator<T> IEnumerable<T>.GetEnumerator() => ((IEnumerable<T>)items).GetEnumerator();
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => items.AsEnumerable().GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => items.GetEnumerator();
-
-        public class ArrayWrapperComparer<TValue, TCollection> :
-            IEqualityComparer<TCollection>
-            where TCollection : ArrayWrapper<TValue>
-            where TValue : IEquatable<TValue>
-        {
-            public ArrayWrapperComparer()
-            {
-                arrayComparer = ArrayComparer<TValue>.Default;
-            }
-
-            private readonly ArrayComparer<TValue> arrayComparer;
-
-            public bool Equals(TCollection x, TCollection y)
-            {
-                if (x == null)
-                {
-                    return y == null;
-                }
-                if (y == null)
-                {
-                    return false;
-                }
-
-                return arrayComparer.Equals(x.items, y.items);
-            }
-
-            public int GetHashCode(TCollection obj) => obj == null ? 0 : arrayComparer.GetHashCode(obj.items);
-        }
     }
 }
