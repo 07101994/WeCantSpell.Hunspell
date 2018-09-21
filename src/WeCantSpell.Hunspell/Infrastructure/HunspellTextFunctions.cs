@@ -197,13 +197,16 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return s;
             }
 
-            var builder = StringBuilderPool.Get(s.Length);
-            builder.Append(expectedFirstLetter);
-            if (s.Length > 1)
+            var result = s.AsSpan().ToString();
+            unsafe
             {
-                builder.Append(s, 1, s.Length - 1);
+                fixed (char* p = result)
+                {
+                    p[0] = expectedFirstLetter;
+                }
             }
-            return StringBuilderPool.GetStringAndReturn(builder);
+            
+            return result;
         }
 
         public static string MakeInitCap(ReadOnlySpan<char> s, TextInfo textInfo)
@@ -216,20 +219,22 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return string.Empty;
             }
 
+            var result = s.ToString();
+
             ref readonly var actualFirstLetter = ref s[0];
             var expectedFirstLetter = textInfo.ToUpper(actualFirstLetter);
-            if (expectedFirstLetter == actualFirstLetter)
+            if (expectedFirstLetter != actualFirstLetter)
             {
-                return s.ToString();
+                unsafe
+                {
+                    fixed (char* p = result)
+                    {
+                        p[0] = expectedFirstLetter;
+                    }
+                }
             }
 
-            var builder = StringBuilderPool.Get(s.Length);
-            builder.Append(expectedFirstLetter);
-            if (s.Length > 1)
-            {
-                builder.Append(s.Slice(1));
-            }
-            return StringBuilderPool.GetStringAndReturn(builder);
+            return result;
         }
 
         /// <summary>
@@ -263,13 +268,16 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return s;
             }
 
-            var builder = StringBuilderPool.Get(s.Length);
-            builder.Append(expectedFirstLetter);
-            if (s.Length > 1)
+            var result = s.AsSpan().ToString();
+            unsafe
             {
-                builder.Append(s, 1, s.Length - 1);
+                fixed (char* p = result)
+                {
+                    p[0] = expectedFirstLetter;
+                }
             }
-            return StringBuilderPool.GetStringAndReturn(builder);
+
+            return result;
         }
 
         public static string MakeAllCap(string s, TextInfo textInfo)
@@ -293,18 +301,22 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return s;
             }
 
-            using (var mo = MemoryPool<char>.Shared.Rent(s.Length))
-            {
-                var sSpan = s.AsSpan();
-                var buffer = mo.Memory.Span.Slice(0, sSpan.Length);
-                sSpan.Slice(0, 1).ToUpper(buffer.Slice(0, 1), cultureInfo);
-                if (sSpan.Length > 1)
-                {
-                    sSpan.Slice(1).ToLower(buffer.Slice(1), cultureInfo);
-                }
+            var sSpan = s.AsSpan();
+            var result = new string('\0', s.Length);
 
-                return buffer.ToString();
+            unsafe
+            {
+                fixed(char* p = result)
+                {
+                    p[0] = cultureInfo.TextInfo.ToUpper(sSpan[0]);
+                    if (result.Length > 1)
+                    {
+                        sSpan.Slice(1).ToLower(new Span<char>(&p[1], sSpan.Length - 1), cultureInfo);
+                    }
+                }
             }
+
+            return result;
         }
 
         public static ReadOnlySpan<char> ReDecodeConvertedStringAsUtf8(ReadOnlySpan<char> decoded, Encoding encoding)
