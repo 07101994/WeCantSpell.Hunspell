@@ -13,13 +13,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public StringDeduper(IEqualityComparer<string> comparer)
         {
             lookup = new Dictionary<string, string>(comparer);
-            Add(string.Empty);
         }
 
         private readonly Dictionary<string, string> lookup;
 
         public string GetEqualOrAdd(string item)
         {
+            if (string.IsNullOrEmpty(item))
+            {
+                return string.Empty;
+            }
+
             if (lookup.TryGetValue(item, out string existing))
             {
                 return existing;
@@ -28,14 +32,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
             {
                 lookup[item] = item;
                 return item;
-            }
-        }
-
-        public void Add(string item)
-        {
-            if (!lookup.ContainsKey(item))
-            {
-                lookup[item] = item;
             }
         }
     }

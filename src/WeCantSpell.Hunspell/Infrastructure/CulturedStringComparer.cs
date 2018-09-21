@@ -10,15 +10,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
     {
         public CulturedStringComparer(CultureInfo culture)
         {
-            Culture = culture ?? throw new ArgumentNullException(nameof(culture));
-            CompareInfo = culture.CompareInfo;
+            compareInfo = culture.CompareInfo;
         }
 
-        private CultureInfo Culture { get; }
+        private readonly CompareInfo compareInfo;
 
-        private CompareInfo CompareInfo { get; }
-
-        public override int Compare(string x, string y) => CompareInfo.Compare(x, y);
+        public override int Compare(string x, string y) => compareInfo.Compare(x, y);
 
         public override bool Equals(string x, string y) => Compare(x, y) == 0;
 
@@ -27,7 +24,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
 #if NO_COMPAREINFO_HASHCODE
             return 0;
 #else
-            return CompareInfo.GetHashCode(obj, CompareOptions.None);
+            return compareInfo.GetHashCode(obj, CompareOptions.None);
 #endif
         }
     }
