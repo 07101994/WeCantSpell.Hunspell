@@ -248,7 +248,7 @@ namespace WeCantSpell.Hunspell
 
                     for (var j = 0; j < slst.Count; j++)
                     {
-                        slst[j] = HunspellTextFunctions.MakeAllCap(slst[j], textInfo).Replace("ß", "SS");
+                        slst[j] = HunspellTextFunctions.ReplaceSharpSUpper(HunspellTextFunctions.MakeAllCap(slst[j], textInfo));
                     }
                 }
 

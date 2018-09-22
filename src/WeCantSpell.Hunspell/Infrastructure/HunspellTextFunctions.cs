@@ -66,11 +66,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return false;
             }
 
-            var s1Span = s1.AsSpan();
-            for (var i = 0; i < s1Span.Length; i++)
+            for (var i = 0; i < s1.Length; i++)
             {
-                ref readonly var s1c = ref s1Span[i];
-                if (s1c != '.' && s1c != s2[i])
+                if (s1[i] != '.' && s1[i] != s2[i])
                 {
                     return false;
                 }
@@ -321,7 +319,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public static ReadOnlySpan<char> ReDecodeConvertedStringAsUtf8(ReadOnlySpan<char> decoded, Encoding encoding)
         {
-            if (Encoding.UTF8.Equals(encoding))
+            if (decoded.IsEmpty || Encoding.UTF8.Equals(encoding) )
             {
                 return decoded;
             }
@@ -333,7 +331,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             {
                 fixed (char* decodedPointer = &MemoryMarshal.GetReference(decoded))
                 {
-                    encodedBytes = new byte[Encoding.UTF8.GetByteCount(decodedPointer, decoded.Length)];
+                    encodedBytes = ArrayEx<byte>.GetFromPool(Encoding.UTF8.GetByteCount(decodedPointer, decoded.Length));
                     fixed (byte* encodedBytesPointer = &encodedBytes[0])
                     {
                         encodedBytesCount = encoding.GetBytes(decodedPointer, decoded.Length, encodedBytesPointer, encodedBytes.Length);
@@ -341,6 +339,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 }
             }
 
+            ArrayEx<byte>.RetrunToPool(encodedBytes);
             return Encoding.UTF8.GetString(encodedBytes, 0, encodedBytesCount).AsSpan();
         }
 
@@ -414,6 +413,39 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
                 return CapitalizationType.Huh;
             }
+        }
+
+        public static string ReplaceSharpSUpper(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            var firstSharpIndex = text.IndexOf('ß');
+            if (firstSharpIndex < 0)
+            {
+                return text;
+            }
+
+            var builder = StringBuilderPool.Get(text.Length * 2);
+            builder.Append(text, 0, firstSharpIndex);
+            builder.Append("SS");
+            for (var i = firstSharpIndex + 1; i < text.Length; i++)
+            {
+                var c = text[i];
+                if (c == 'ß')
+                {
+                    builder.Append("SS");
+                }
+                else
+                {
+                    builder.Append(c);
+                }
+            }
+
+
+            return StringBuilderPool.GetStringAndReturn(builder);
         }
     }
 }

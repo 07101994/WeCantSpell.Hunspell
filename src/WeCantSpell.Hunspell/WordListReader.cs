@@ -446,9 +446,9 @@ namespace WeCantSpell.Hunspell
                         // results wendsay -> Wednesday and Wendsay -> Wednesday, too.
                         if (capType == CapitalizationType.Init)
                         {
-                            var phCapitalized = HunspellTextFunctions.MakeInitCap(phString, Affix.Culture.TextInfo);
-                            if (phCapitalized.Length != 0)
+                            if (phString.Length != 0)
                             {
+                                var phCapitalized = HunspellTextFunctions.MakeInitCap(phString, Affix.Culture.TextInfo);
                                 // add also lowercase word in the case of German or
                                 // Hungarian to support lowercase suggestions lowercased by
                                 // compound word generation or derivational suffixes

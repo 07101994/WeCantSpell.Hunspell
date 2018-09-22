@@ -1,4 +1,7 @@
-﻿namespace WeCantSpell.Hunspell.Infrastructure
+﻿using System;
+using System.Threading;
+
+namespace WeCantSpell.Hunspell.Infrastructure
 {
     static class ArrayEx<T>
     {
@@ -7,6 +10,10 @@
 #else
         public static readonly T[] Empty = System.Array.Empty<T>();
 #endif
+
+        private const int MaxCachePoolBufferLength = 128;
+
+        private static T[] BufferPoolCache;
 
         public static int GetHashCode(T[] obj)
         {
@@ -42,5 +49,24 @@
 
         private static int GetHashCode(T obj) =>
             obj == null ? 0 : obj.GetHashCode();
+
+        public static T[] GetFromPool(int minLength)
+        {
+            var taken = Interlocked.Exchange(ref BufferPoolCache, null);
+            return (taken != null && taken.Length >= minLength)
+                ? taken
+                : new T[minLength];
+        }
+
+        public static void RetrunToPool(T[] buffer)
+        {
+#if DEBUG
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+#endif
+            if (buffer.Length <= MaxCachePoolBufferLength)
+            {
+                Interlocked.Exchange(ref BufferPoolCache, buffer);
+            }
+        }
     }
 }
