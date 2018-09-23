@@ -8,6 +8,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
         {
             BenchmarkRunner.Run<EnUsWordListCheckSuite>();
             BenchmarkRunner.Run<EnUsWordListSuggestSuite>();
+            BenchmarkRunner.Run<EnWordListLoadSuite>();
         }
     }
 }

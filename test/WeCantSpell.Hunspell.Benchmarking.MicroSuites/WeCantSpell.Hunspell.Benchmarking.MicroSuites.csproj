@@ -18,7 +18,7 @@
       <Link>files\List_of_common_misspellings.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\samples\English (American).*">
+    <None Include="..\..\samples\English*.*">
       <Link>files\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -5,14 +5,14 @@ using WeCantSpell.Hunspell.Benchmarking.MicroSuites.Infrastructure;
 
 namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
 {
-    [SimpleJob]
+    [SimpleJob(launchCount: 1, warmupCount: 2, targetCount: 3), RankColumn, MemoryDiagnoser]
     public class EnUsWordListSuggestSuite
     {
         private WordList WordList;
 
         private CategorizedWordData WordData;
 
-        private const int MaxWords = 5;
+        private const int MaxWords = 15;
 
         [GlobalSetup]
         public void Setup()
@@ -26,7 +26,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
         }
 
 
-        [Benchmark(Description = "Suggest an assortment of words")]
+        [Benchmark(Description = "Suggest an assortment of words", Baseline = true)]
         public void CheckAllWords()
         {
             foreach (var word in WordData.AllWords.Take(MaxWords))
@@ -35,7 +35,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
             }
         }
 
-        [Benchmark(Description = "Suggest root words", Baseline = true)]
+        [Benchmark(Description = "Suggest root words")]
         public void CheckRootWords()
         {
             foreach (var word in WordData.RootWords.Take(MaxWords))

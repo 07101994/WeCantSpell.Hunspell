@@ -1,15 +1,18 @@
 ﻿using System.IO;
+using System.Linq;
 using BenchmarkDotNet.Attributes;
 using WeCantSpell.Hunspell.Benchmarking.MicroSuites.Infrastructure;
 
 namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
 {
-    [SimpleJob]
+    [SimpleJob(launchCount: 1, warmupCount: 2, targetCount: 3), RankColumn, MemoryDiagnoser]
     public class EnUsWordListCheckSuite
     {
         private WordList WordList;
 
         private CategorizedWordData WordData;
+
+        private const int MaxWords = 1000;
 
         [GlobalSetup]
         public void Setup()
@@ -23,19 +26,19 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
         }
 
 
-        [Benchmark(Description = "Check an assortment of words")]
+        [Benchmark(Description = "Check an assortment of words", Baseline = true)]
         public void CheckAllWords()
         {
-            foreach (var word in WordData.AllWords)
+            foreach (var word in WordData.AllWords.Take(MaxWords))
             {
                 var result = WordList.Check(word);
             }
         }
 
-        [Benchmark(Description = "Check root words", Baseline = true)]
+        [Benchmark(Description = "Check root words")]
         public void CheckRootWords()
         {
-            foreach (var word in WordData.RootWords)
+            foreach (var word in WordData.RootWords.Take(MaxWords))
             {
                 var result = WordList.Check(word);
             }
@@ -44,7 +47,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
         [Benchmark(Description = "Check correct words")]
         public void CheckCorrectWords()
         {
-            foreach (var word in WordData.CorrectWords)
+            foreach (var word in WordData.CorrectWords.Take(MaxWords))
             {
                 var result = WordList.Check(word);
             }
@@ -53,7 +56,7 @@ namespace WeCantSpell.Hunspell.Benchmarking.MicroSuites
         [Benchmark(Description = "Check wrong words")]
         public void CheckWrongWords()
         {
-            foreach (var word in WordData.WrongWords)
+            foreach (var word in WordData.WrongWords.Take(MaxWords))
             {
                 var result = WordList.Check(word);
             }
