@@ -2,10 +2,6 @@
 using System.Text;
 using System.Threading;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell.Infrastructure
 {
     static class StringBuilderPool
@@ -28,18 +24,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static StringBuilder Get(string value, int capacity) =>
             GetClearedBuilderWithCapacity(capacity).Append(value);
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static StringBuilder Get(int capacity) =>
             GetClearedBuilderWithCapacity(capacity);
 
         public static StringBuilder Get(ReadOnlySpan<char> value) =>
             GetClearedBuilderWithCapacity(value.Length).Append(value);
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static void Return(StringBuilder builder)
         {
 #if DEBUG
@@ -52,9 +42,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static string GetStringAndReturn(StringBuilder builder)
         {
             var value = builder.ToString();
@@ -62,9 +49,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return value;
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         private static StringBuilder GetClearedBuilderWithCapacity(int minimumCapacity)
         {
             var taken = Interlocked.Exchange(ref Cache, null);

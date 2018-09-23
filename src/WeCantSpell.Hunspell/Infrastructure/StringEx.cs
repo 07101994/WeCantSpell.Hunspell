@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 
 #if !NO_INLINE
 using System.Runtime.CompilerServices;
