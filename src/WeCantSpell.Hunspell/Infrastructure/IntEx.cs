@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Globalization;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell.Infrastructure
 {
     static class IntEx
@@ -12,7 +8,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
         private static readonly NumberFormatInfo InvariantNumberFormat = CultureInfo.InvariantCulture.NumberFormat;
 
         public static bool TryParseInvariant(string text, out int value) =>
-            int.TryParse(text, NumberStyles.Integer, InvariantNumberFormat, out value);
+            text.Length == 1
+                ? TryParseInvariant(text[0], out value)
+                : int.TryParse(text, NumberStyles.Integer, InvariantNumberFormat, out value);
 
         public static bool TryParseInvariant(ReadOnlySpan<char> text, out int value)
         {
@@ -27,13 +25,14 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (text[0] == '-')
             {
                 isNegative = true;
-                text = text.Slice(1);
-            }
 
-            if (text.IsEmpty)
-            {
-                value = default;
-                return false;
+                if (text.Length == 1)
+                {
+                    value = default;
+                    return false;
+                }
+
+                text = text.Slice(1);
             }
 
             if (!TryParseInvariant(text[text.Length - 1], out value))
@@ -60,11 +59,10 @@ namespace WeCantSpell.Hunspell.Infrastructure
         }
 
         public static int? TryParseInvariant(ReadOnlySpan<char> text) =>
-            TryParseInvariant(text, out int value) ? value : default(int?);
+            text.Length == 1
+                ? TryParseInvariant(text[0])
+                : (TryParseInvariant(text, out int value) ? value : default(int?));
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool InversePostfixIncrement(ref bool b)
         {
             if (b)
@@ -77,6 +75,11 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return true;
             }
         }
+
+        private static int? TryParseInvariant(char character) =>
+            (character >= '0' && character <= '9')
+                ? character - '0'
+                : default(int?);
 
         private static bool TryParseInvariant(char character, out int value)
         {
