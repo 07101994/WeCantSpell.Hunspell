@@ -444,7 +444,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 }
             }
 
-
             return StringBuilderPool.GetStringAndReturn(builder);
         }
     }

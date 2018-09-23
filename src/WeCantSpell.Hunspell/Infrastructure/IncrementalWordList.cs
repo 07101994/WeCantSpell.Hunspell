@@ -1,18 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell.Infrastructure
 {
     class IncrementalWordList
     {
         public IncrementalWordList()
-            : this(new List<WordEntryDetail>(), 0) { }
+        {
+            Words = new List<WordEntryDetail>();
+            WNum = 0;
+        }
 
-        public IncrementalWordList(List<WordEntryDetail> words, int wNum)
+        private IncrementalWordList(List<WordEntryDetail> words, int wNum)
         {
 #if DEBUG
             if (words == null) throw new ArgumentNullException(nameof(words));
@@ -42,17 +41,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-        private void AppendForCurrent(WordEntryDetail value)
-        {
-            var blanksToInsert = WNum - Words.Count;
-            for (var i = WNum - Words.Count; i > 0; i--)
-            {
-                Words.Add(null);
-            }
-
-            Words.Add(value);
-        }
-
         public void ClearCurrent()
         {
             if (WNum < Words.Count)
@@ -61,20 +49,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public bool CheckIfCurrentIsNotNull() =>
-            CheckIfNotNull(WNum);
+        public bool CheckIfCurrentIsNotNull() => CheckIfNotNull(WNum);
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public bool CheckIfNextIsNotNull() =>
-            CheckIfNotNull(WNum + 1);
-
-        private bool CheckIfNotNull(int index) =>
-            (index < Words.Count) && Words[index] != null;
+        public bool CheckIfNextIsNotNull() => CheckIfNotNull(WNum + 1);
 
         public bool ContainsFlagAt(int wordIndex, FlagValue flag)
         {
@@ -94,10 +71,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return false;
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public IncrementalWordList CreateIncremented() =>
-            new IncrementalWordList(Words, WNum + 1);
+        public IncrementalWordList CreateIncremented() => new IncrementalWordList(Words, WNum + 1);
+
+        private bool CheckIfNotNull(int index) => (index < Words.Count) && Words[index] != null;
+
+        private void AppendForCurrent(WordEntryDetail value)
+        {
+            for (var i = WNum - Words.Count; i > 0; i--)
+            {
+                Words.Add(default);
+            }
+
+            Words.Add(value);
+        }
     }
 }
