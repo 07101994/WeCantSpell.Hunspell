@@ -12,7 +12,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
                 return null;
             }
 
-            if (encodingName.Equals("UTF8", StringComparison.OrdinalIgnoreCase) || encodingName.Equals("UTF-8", StringComparison.OrdinalIgnoreCase))
+            if (encodingName.EqualsOrdinalIgnoreCase("UTF8") || encodingName.EqualsOrdinalIgnoreCase("UTF-8"))
             {
                 return Encoding.UTF8;
             }

@@ -109,7 +109,7 @@ namespace WeCantSpell.Hunspell
                         var pLastIndex = breakEntry.Length - 1;
                         if (
                             breakEntry.StartsWith('^')
-                            && scw.AsSpan().Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan(1))
+                            && scw.AsSpan().Limit(pLastIndex).SequenceEqual(breakEntry.AsSpan(1))
                             && CheckNested(scw.Substring(pLastIndex))
                         )
                         {
@@ -120,7 +120,7 @@ namespace WeCantSpell.Hunspell
                         {
                             var wlLessBreakIndex = scw.Length - breakEntry.Length + 1;
                             if (
-                                scw.AsSpan(wlLessBreakIndex).Limit(pLastIndex).EqualsOrdinal(breakEntry.AsSpan().Limit(pLastIndex))
+                                scw.AsSpan(wlLessBreakIndex).Limit(pLastIndex).SequenceEqual(breakEntry.AsSpan().Limit(pLastIndex))
                                 && CheckNested(scw.Substring(0, wlLessBreakIndex))
                             )
                             {

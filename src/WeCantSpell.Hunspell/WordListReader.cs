@@ -608,12 +608,40 @@ namespace WeCantSpell.Hunspell
                         : null;
 
                     return new ParsedWordLine(
-                        word: word.Replace(@"\/", @"/"),
+                        word: UnescapeWordSlashes(word),//.Replace(@"\/", @"/"),
                         flags: flagsPart,
                         morphs: morphGroup != null && morphGroup.Success ? GetCapturesAsTest(morphGroup.Captures) : null);
                 }
 
                 return default;
+            }
+
+            private static ReadOnlySpan<char> UnescapeWordSlashes(ReadOnlySpan<char> text)
+            {
+                var escaped = @"\/".AsSpan();
+                var patternIndex = text.IndexOf(escaped);
+                if (patternIndex < 0)
+                {
+                    return text;
+                }
+
+                var builder = StringBuilderPool.Get(text.Length - 1);
+
+                do
+                {
+                    builder.Append(text.Slice(0, patternIndex));
+                    builder.Append('/');
+                    text = text.Slice(patternIndex + 2);
+                    patternIndex = text.IndexOf(escaped);
+                }
+                while (patternIndex >= 0);
+
+                if (!text.IsEmpty)
+                {
+                    builder.Append(text);
+                }
+
+                return StringBuilderPool.GetStringAndReturn(builder).AsSpan();
             }
 
             private static int FindIndexOfFirstMorphByColonChar(string text, int index)

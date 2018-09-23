@@ -210,7 +210,7 @@ namespace WeCantSpell.Hunspell
                             var slen = toRemove.Length - spaceIndex - 1;
 
                             // different case after space (need capitalisation)
-                            if (slen < scw.Length && !scw.AsSpan(scw.Length - slen).EqualsOrdinal(toRemove.AsSpan(spaceIndex + 1)))
+                            if (slen < scw.Length && !scw.AsSpan(scw.Length - slen).SequenceEqual(toRemove.AsSpan(spaceIndex + 1)))
                             {
                                 // set as first suggestion
                                 RemoveFromIndexThenInsertAtFront(
@@ -1831,7 +1831,7 @@ namespace WeCantSpell.Hunspell
                                     (
                                         bad.Length > key.Length
                                         &&
-                                        bad.AsSpan(bad.Length - key.Length).EqualsOrdinal(sptr.Append.AsSpan())
+                                        bad.AsSpan(bad.Length - key.Length).SequenceEqual(sptr.Append.AsSpan())
                                     )
                                 )
                                 && // check needaffix flag

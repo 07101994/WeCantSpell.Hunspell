@@ -477,7 +477,7 @@ namespace WeCantSpell.Hunspell
                         rule = Builder.Dedup(part);
                         return true;
                     case 1:
-                        replace = Builder.Dedup(part.Without('_'));
+                        replace = Builder.Dedup(part.ToStringWithout('_'));
                         return true;
                     default:
                         return false;
@@ -586,7 +586,7 @@ namespace WeCantSpell.Hunspell
         {
             if (EnumEx.HasFlag(Builder.Options, AffixConfigOptions.ComplexPrefixes))
             {
-                parameterText = parameterText.Reversed();
+                parameterText = parameterText.GetReversed();
             }
 
             var parts = new List<string>();
@@ -957,26 +957,23 @@ namespace WeCantSpell.Hunspell
                         var hasStartingCarrot = part.StartsWith('^');
                         var hasTrailingDollar = part.EndsWith('$');
 
-                        var patternBuilder = StringBuilderPool.Get(part);
                         type = ReplacementValueType.Med;
 
                         if (hasTrailingDollar)
                         {
                             type |= ReplacementValueType.Fin;
-                            patternBuilder.Remove(patternBuilder.Length - 1, 1);
+                            part = part.Slice(0, part.Length - 1);
                         }
-
                         if (hasStartingCarrot)
                         {
                             type |= ReplacementValueType.Ini;
-                            patternBuilder.Remove(0, 1);
+                            part = part.Slice(1);
                         }
 
-                        patternBuilder.Replace('_', ' ');
-                        pattern = StringBuilderPool.GetStringAndReturn(patternBuilder);
+                        pattern = part.ToString().Replace('_', ' ');
                         return true;
                     case 1:
-                        outString = Builder.Dedup(part.Replace('_', ' '));
+                        outString = Builder.Dedup(part.ToString().Replace('_', ' '));
                         return true;
                     default:
                         return false;
@@ -1161,39 +1158,39 @@ namespace WeCantSpell.Hunspell
                 {
                     case 'C':
                     case 'c':
-                        if (value.StartsWith("CHECK", StringComparison.OrdinalIgnoreCase))
+                        if (value.StartsWithOrdinalIgnoreCase("CHECK"))
                         {
                             value = value.Slice(5);
-                            if (value.Equals("COMPOUNDDUP", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("COMPOUNDDUP"))
                             {
                                 return AffixConfigOptions.CheckCompoundDup;
                             }
-                            if (value.Equals("COMPOUNDREP", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("COMPOUNDREP"))
                             {
                                 return AffixConfigOptions.CheckCompoundRep;
                             }
-                            if (value.Equals("COMPOUNDTRIPLE", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("COMPOUNDTRIPLE"))
                             {
                                 return AffixConfigOptions.CheckCompoundTriple;
                             }
-                            if (value.Equals("COMPOUNDCASE", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("COMPOUNDCASE"))
                             {
                                 return AffixConfigOptions.CheckCompoundCase;
                             }
-                            if (value.Equals("NUM", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("NUM"))
                             {
                                 return AffixConfigOptions.CheckNum;
                             }
-                            if (value.Equals("SHARPS", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("SHARPS"))
                             {
                                 return AffixConfigOptions.CheckSharps;
                             }
                         }
-                        else if (value.Equals("COMPLEXPREFIXES", StringComparison.OrdinalIgnoreCase))
+                        else if (value.EqualsOrdinalIgnoreCase("COMPLEXPREFIXES"))
                         {
                             return AffixConfigOptions.ComplexPrefixes;
                         }
-                        else if (value.Equals("COMPOUNDMORESUFFIXES", StringComparison.OrdinalIgnoreCase))
+                        else if (value.EqualsOrdinalIgnoreCase("COMPOUNDMORESUFFIXES"))
                         {
                             return AffixConfigOptions.CompoundMoreSuffixes;
                         }
@@ -1202,11 +1199,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'F':
                     case 'f':
-                        if (value.Equals("FULLSTRIP", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("FULLSTRIP"))
                         {
                             return AffixConfigOptions.FullStrip;
                         }
-                        if (value.Equals("FORBIDWARN", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("FORBIDWARN"))
                         {
                             return AffixConfigOptions.ForbidWarn;
                         }
@@ -1215,7 +1212,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'N':
                     case 'n':
-                        if (value.Equals("NOSPLITSUGS", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("NOSPLITSUGS"))
                         {
                             return AffixConfigOptions.NoSplitSuggestions;
                         }
@@ -1224,7 +1221,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'O':
                     case 'o':
-                        if (value.Equals("ONLYMAXDIFF", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("ONLYMAXDIFF"))
                         {
                             return AffixConfigOptions.OnlyMaxDiff;
                         }
@@ -1233,11 +1230,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'S':
                     case 's':
-                        if (value.Equals("SIMPLIFIEDTRIPLE", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SIMPLIFIEDTRIPLE"))
                         {
                             return AffixConfigOptions.SimplifiedTriple;
                         }
-                        if (value.Equals("SUGSWITHDOTS", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SUGSWITHDOTS"))
                         {
                             return AffixConfigOptions.SuggestWithDots;
                         }
@@ -1257,11 +1254,11 @@ namespace WeCantSpell.Hunspell
                 {
                     case 'A':
                     case 'a':
-                        if (value.Equals("AF", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("AF"))
                         {
                             return AffixReaderCommandKind.AliasF;
                         }
-                        if (value.Equals("AM", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("AM"))
                         {
                             return AffixReaderCommandKind.AliasM;
                         }
@@ -1270,7 +1267,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'B':
                     case 'b':
-                        if (value.Equals("BREAK", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("BREAK"))
                         {
                             return AffixReaderCommandKind.Break;
                         }
@@ -1279,59 +1276,59 @@ namespace WeCantSpell.Hunspell
 
                     case 'C':
                     case 'c':
-                        if (value.Length > 8 && value.StartsWith("COMPOUND", StringComparison.OrdinalIgnoreCase))
+                        if (value.Length > 8 && value.StartsWithOrdinalIgnoreCase("COMPOUND"))
                         {
                             value = value.Slice(8);
-                            if (value.Equals("BEGIN", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("BEGIN"))
                             {
                                 return AffixReaderCommandKind.CompoundBegin;
                             }
-                            if (value.Equals("END", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("END"))
                             {
                                 return AffixReaderCommandKind.CompoundEnd;
                             }
-                            if (value.Equals("FLAG", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("FLAG"))
                             {
                                 return AffixReaderCommandKind.CompoundFlag;
                             }
-                            if (value.Equals("FORBIDFLAG", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("FORBIDFLAG"))
                             {
                                 return AffixReaderCommandKind.CompoundForbidFlag;
                             }
-                            if (value.Equals("MIDDLE", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("MIDDLE"))
                             {
                                 return AffixReaderCommandKind.CompoundMiddle;
                             }
-                            if (value.Equals("MIN", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("MIN"))
                             {
                                 return AffixReaderCommandKind.CompoundMin;
                             }
-                            if (value.Equals("PERMITFLAG", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("PERMITFLAG"))
                             {
                                 return AffixReaderCommandKind.CompoundPermitFlag;
                             }
-                            if (value.Equals("ROOT", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("ROOT"))
                             {
                                 return AffixReaderCommandKind.CompoundRoot;
                             }
-                            if (value.Equals("RULE", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("RULE"))
                             {
                                 return AffixReaderCommandKind.CompoundRule;
                             }
-                            if (value.Equals("SYLLABLE", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("SYLLABLE"))
                             {
                                 return AffixReaderCommandKind.CompoundSyllable;
                             }
-                            if (value.Equals("WORDMAX", StringComparison.OrdinalIgnoreCase))
+                            if (value.EqualsOrdinalIgnoreCase("WORDMAX"))
                             {
                                 return AffixReaderCommandKind.CompoundWordMax;
                             }
                         }
-                        else if (value.Equals("CIRCUMFIX", StringComparison.OrdinalIgnoreCase))
+                        else if (value.EqualsOrdinalIgnoreCase("CIRCUMFIX"))
                         {
                             return AffixReaderCommandKind.Circumfix;
                         }
-                        else if (value.Equals("CHECKCOMPOUNDPATTERN", StringComparison.OrdinalIgnoreCase))
+                        else if (value.EqualsOrdinalIgnoreCase("CHECKCOMPOUNDPATTERN"))
                         {
                             return AffixReaderCommandKind.CheckCompoundPattern;
                         }
@@ -1340,15 +1337,15 @@ namespace WeCantSpell.Hunspell
 
                     case 'F':
                     case 'f':
-                        if (value.Equals("FLAG", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("FLAG"))
                         {
                             return AffixReaderCommandKind.Flag;
                         }
-                        if (value.Equals("FORBIDDENWORD", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("FORBIDDENWORD"))
                         {
                             return AffixReaderCommandKind.ForbiddenWord;
                         }
-                        if (value.Equals("FORCEUCASE", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("FORCEUCASE"))
                         {
                             return AffixReaderCommandKind.ForceUpperCase;
                         }
@@ -1357,11 +1354,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'I':
                     case 'i':
-                        if (value.Equals("ICONV", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("ICONV"))
                         {
                             return AffixReaderCommandKind.InputConversions;
                         }
-                        if (value.Equals("IGNORE", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("IGNORE"))
                         {
                             return AffixReaderCommandKind.Ignore;
                         }
@@ -1370,11 +1367,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'K':
                     case 'k':
-                        if (value.Equals("KEY", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("KEY"))
                         {
                             return AffixReaderCommandKind.KeyString;
                         }
-                        if (value.Equals("KEEPCASE", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("KEEPCASE"))
                         {
                             return AffixReaderCommandKind.KeepCase;
                         }
@@ -1383,11 +1380,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'L':
                     case 'l':
-                        if (value.Equals("LANG", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("LANG"))
                         {
                             return AffixReaderCommandKind.Language;
                         } 
-                        if (value.Equals("LEMMA_PRESENT", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("LEMMA_PRESENT"))
                         {
                             return AffixReaderCommandKind.LemmaPresent;
                         }
@@ -1396,19 +1393,19 @@ namespace WeCantSpell.Hunspell
 
                     case 'M':
                     case 'm':
-                        if (value.Equals("MAP", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("MAP"))
                         {
                             return AffixReaderCommandKind.Map;
                         }
-                        if (value.Equals("MAXNGRAMSUGS", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("MAXNGRAMSUGS"))
                         {
                             return AffixReaderCommandKind.MaxNgramSuggestions;
                         }
-                        if (value.Equals("MAXDIFF", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("MAXDIFF"))
                         {
                             return AffixReaderCommandKind.MaxDifferency;
                         }
-                        if (value.Equals("MAXCPDSUGS", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("MAXCPDSUGS"))
                         {
                             return AffixReaderCommandKind.MaxCompoundSuggestions;
                         }
@@ -1417,15 +1414,15 @@ namespace WeCantSpell.Hunspell
 
                     case 'N':
                     case 'n':
-                        if (value.Equals("NEEDAFFIX", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("NEEDAFFIX"))
                         {
                             return AffixReaderCommandKind.NeedAffix;
                         }
-                        if (value.Equals("NOSUGGEST", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("NOSUGGEST"))
                         {
                             return AffixReaderCommandKind.NoSuggest;
                         }
-                        if (value.Equals("NONGRAMSUGGEST", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("NONGRAMSUGGEST"))
                         {
                             return AffixReaderCommandKind.NoNGramSuggest;
                         }
@@ -1434,11 +1431,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'O':
                     case 'o':
-                        if (value.Equals("OCONV", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("OCONV"))
                         {
                             return AffixReaderCommandKind.OutputConversions;
                         }
-                        if (value.Equals("ONLYINCOMPOUND", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("ONLYINCOMPOUND"))
                         {
                             return AffixReaderCommandKind.OnlyInCompound;
                         }
@@ -1447,15 +1444,15 @@ namespace WeCantSpell.Hunspell
 
                     case 'P':
                     case 'p':
-                        if (value.Equals("PFX", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("PFX"))
                         {
                             return AffixReaderCommandKind.Prefix;
                         }
-                        if (value.Equals("PSEUDOROOT", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("PSEUDOROOT"))
                         {
                             return AffixReaderCommandKind.NeedAffix;
                         }
-                        if (value.Equals("PHONE", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("PHONE"))
                         {
                             return AffixReaderCommandKind.Phone;
                         }
@@ -1464,7 +1461,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'R':
                     case 'r':
-                        if (value.Equals("REP", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("REP"))
                         {
                             return AffixReaderCommandKind.Replacement;
                         }
@@ -1473,19 +1470,19 @@ namespace WeCantSpell.Hunspell
 
                     case 'S':
                     case 's':
-                        if (value.Equals("SFX", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SFX"))
                         {
                             return AffixReaderCommandKind.Suffix;
                         }
-                        if (value.Equals("SET", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SET"))
                         {
                             return AffixReaderCommandKind.SetEncoding;
                         }
-                        if (value.Equals("SYLLABLENUM", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SYLLABLENUM"))
                         {
                             return AffixReaderCommandKind.CompoundSyllableNum;
                         }
-                        if (value.Equals("SUBSTANDARD", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("SUBSTANDARD"))
                         {
                             return AffixReaderCommandKind.SubStandard;
                         }
@@ -1494,7 +1491,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'T':
                     case 't':
-                        if (value.Equals("TRY", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("TRY"))
                         {
                             return AffixReaderCommandKind.TryString;
                         }
@@ -1503,7 +1500,7 @@ namespace WeCantSpell.Hunspell
 
                     case 'V':
                     case 'v':
-                        if (value.Equals("VERSION", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("VERSION"))
                         {
                             return AffixReaderCommandKind.Version;
                         }
@@ -1512,11 +1509,11 @@ namespace WeCantSpell.Hunspell
 
                     case 'W':
                     case 'w':
-                        if (value.Equals("WORDCHARS", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("WORDCHARS"))
                         {
                             return AffixReaderCommandKind.WordChars;
                         }
-                        if (value.Equals("WARN", StringComparison.OrdinalIgnoreCase))
+                        if (value.EqualsOrdinalIgnoreCase("WARN"))
                         {
                             return AffixReaderCommandKind.Warn;
                         }
@@ -1536,28 +1533,28 @@ namespace WeCantSpell.Hunspell
                 {
                     case 'C':
                     case 'c':
-                        if (value.StartsWith("CHAR", StringComparison.OrdinalIgnoreCase))
+                        if (value.StartsWithOrdinalIgnoreCase("CHAR"))
                         {
                             return FlagMode.Char;
                         }
                         break;
                     case 'L':
                     case 'l':
-                        if (value.StartsWith("LONG", StringComparison.OrdinalIgnoreCase))
+                        if (value.StartsWithOrdinalIgnoreCase("LONG"))
                         {
                             return FlagMode.Long;
                         }
                         break;
                     case 'N':
                     case 'n':
-                        if (value.StartsWith("NUM", StringComparison.OrdinalIgnoreCase))
+                        if (value.StartsWithOrdinalIgnoreCase("NUM"))
                         {
                             return FlagMode.Num;
                         }
                         break;
                     case 'U':
                     case 'u':
-                        if (value.StartsWith("UTF", StringComparison.OrdinalIgnoreCase) || value.StartsWith("UNI", StringComparison.OrdinalIgnoreCase))
+                        if (value.StartsWithOrdinalIgnoreCase("UTF") || value.StartsWithOrdinalIgnoreCase("UNI"))
                         {
                             return FlagMode.Uni;
                         }

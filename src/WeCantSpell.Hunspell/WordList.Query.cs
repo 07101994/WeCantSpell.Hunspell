@@ -868,7 +868,7 @@ namespace WeCantSpell.Hunspell
                                     // XXX only second suffix (inflections, not derivations)
                                     if (SuffixAppend != null)
                                     {
-                                        numSyllable -= GetSyllable(SuffixAppend.AsSpan().Reversed());
+                                        numSyllable -= GetSyllable(SuffixAppend);
                                     }
                                     if (SuffixExtra)
                                     {
@@ -876,7 +876,7 @@ namespace WeCantSpell.Hunspell
                                     }
 
                                     // + 1 word, if syllable number of the prefix > 1 (hungarian convention)
-                                    if (Prefix != null && GetSyllable(Prefix.Key.AsSpan()) > 1)
+                                    if (Prefix != null && GetSyllable(Prefix.Key) > 1)
                                     {
                                         wordNum++;
                                     }
@@ -971,7 +971,7 @@ namespace WeCantSpell.Hunspell
                                                 (
                                                     Affix.CompoundMaxSyllable != 0
                                                     &&
-                                                    numSyllable + GetSyllable(rv.Word.AsSpan()) <= Affix.CompoundMaxSyllable
+                                                    numSyllable + GetSyllable(rv.Word) <= Affix.CompoundMaxSyllable
                                                 )
                                             )
                                             &&
@@ -1100,7 +1100,7 @@ namespace WeCantSpell.Hunspell
                                         // XXX only second suffix (inflections, not derivations)
                                         if (SuffixAppend != null)
                                         {
-                                            numSyllable -= GetSyllable(SuffixAppend.AsSpan().Reversed());
+                                            numSyllable -= GetSyllable(SuffixAppend);
                                         }
                                         if (SuffixExtra)
                                         {
@@ -1109,7 +1109,7 @@ namespace WeCantSpell.Hunspell
 
                                         // + 1 word, if syllable number of the prefix > 1 (hungarian
                                         // convention)
-                                        if (Prefix != null && GetSyllable(Prefix.Key.AsSpan()) > 1)
+                                        if (Prefix != null && GetSyllable(Prefix.Key) > 1)
                                         {
                                             wordNum++;
                                         }
@@ -1812,6 +1812,27 @@ namespace WeCantSpell.Hunspell
             /// Calculate number of syllable for compound-checking.
             /// </summary>
             private int GetSyllable(ReadOnlySpan<char> word)
+            {
+                var num = 0;
+                var vowels = Affix.CompoundVowels;
+                if (Affix.CompoundMaxSyllable != 0 && vowels.HasItems)
+                {
+                    for (var i = 0; i < word.Length; i++)
+                    {
+                        if (vowels.Contains(word[i]))
+                        {
+                            num++;
+                        }
+                    }
+                }
+
+                return num;
+            }
+
+            /// <summary>
+            /// Calculate number of syllable for compound-checking.
+            /// </summary>
+            private int GetSyllable(string word)
             {
                 var num = 0;
                 var vowels = Affix.CompoundVowels;

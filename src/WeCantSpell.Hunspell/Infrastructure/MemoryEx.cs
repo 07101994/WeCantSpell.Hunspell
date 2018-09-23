@@ -30,25 +30,35 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public static int IndexOfAny(this ReadOnlySpan<char> @this, CharacterSet chars)
         {
-            for (var searchLocation = 0; searchLocation < @this.Length; searchLocation++)
+            if (chars.HasItems)
             {
-                if (chars.Contains(@this[searchLocation]))
+                if (chars.Count == 1)
                 {
-                    return searchLocation;
+                    return @this.IndexOf(chars[0]);
+                }
+                
+                if (chars.Count == 2)
+                {
+                    return @this.IndexOfAny(chars[0], chars[1]);
+                }
+
+                for (var searchLocation = 0; searchLocation < @this.Length; searchLocation++)
+                {
+                    if (chars.Contains(@this[searchLocation]))
+                    {
+                        return searchLocation;
+                    }
                 }
             }
 
             return -1;
         }
 
-        public static bool Equals(this ReadOnlySpan<char> @this, string value, StringComparison comparison) =>
-            value != null && @this.Equals(value.AsSpan(), comparison);
-
-        public static bool EqualsOrdinal(this ReadOnlySpan<char> @this, ReadOnlySpan<char> value) =>
-            @this.SequenceEqual(value);
+        public static bool EqualsOrdinalIgnoreCase(this ReadOnlySpan<char> @this, string value) =>
+            value != null && @this.Equals(value.AsSpan(), StringComparison.OrdinalIgnoreCase);
 
         public static bool EqualsLimited(this ReadOnlySpan<char> @this, ReadOnlySpan<char> value, int lengthLimit) =>
-            @this.Limit(lengthLimit).EqualsOrdinal(value.Limit(lengthLimit));
+            @this.Limit(lengthLimit).SequenceEqual(value.Limit(lengthLimit));
 
         public static bool ContainsAny(this ReadOnlySpan<char> @this, char value0, char value1) =>
             @this.IndexOfAny(value0, value1) >= 0;
@@ -59,12 +69,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static bool Contains(this ReadOnlySpan<char> @this, ReadOnlySpan<char> value) =>
             @this.IndexOf(value) >= 0;
 
-        public static bool StartsWith(this ReadOnlySpan<char> @this, string value, StringComparison comparison)
+        public static bool StartsWithOrdinalIgnoreCase(this ReadOnlySpan<char> @this, string value)
         {
 #if DEBUG
             if (value == null) throw new ArgumentNullException(nameof(value));
 #endif
-            return @this.StartsWith(value.AsSpan(), comparison);
+            return @this.StartsWith(value.AsSpan(), StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool StartsWith(this ReadOnlySpan<char> @this, char value) =>
@@ -96,8 +106,12 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
 
             partLength = @this.Length - startIndex;
-            return partLength > 0
-                && partHandler(@this.Slice(startIndex, partLength), partIndex);
+            if (partLength > 0)
+            {
+                return partHandler(@this.Slice(startIndex, partLength), partIndex);
+            }
+
+            return true;
         }
 
         public static bool Split(this ReadOnlySpan<char> @this, char value0, char value1, SplitPartHandler partHandler)
@@ -121,14 +135,18 @@ namespace WeCantSpell.Hunspell.Infrastructure
             }
 
             partLength = @this.Length - startIndex;
-            return partLength > 0
-                && partHandler(@this.Slice(startIndex, partLength), partIndex);
+            if (partLength > 0)
+            {
+                return partHandler(@this.Slice(startIndex, partLength), partIndex);
+            }
+
+            return true;
         }
 
         public static bool SplitOnTabOrSpace(this ReadOnlySpan<char> @this, SplitPartHandler partHandler) =>
             @this.Split(' ', '\t', partHandler);
 
-        public static string Without(this ReadOnlySpan<char> @this, char value)
+        public static string ToStringWithout(this ReadOnlySpan<char> @this, char value)
         {
             var removeIndex = @this.IndexOf(value);
             if (removeIndex < 0)
@@ -156,54 +174,26 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return StringBuilderPool.GetStringAndReturn(builder);
         }
 
-        public static ReadOnlySpan<char> Replace(this ReadOnlySpan<char> @this, char oldChar, char newChar)
-        {
-            var replaceIndex = @this.IndexOf(oldChar);
-            if (replaceIndex < 0)
-            {
-                return @this;
-            }
-            
-            var builder = StringBuilderPool.Get(@this.Length);
-            builder.Append(@this.Slice(0, replaceIndex));
-            builder.Append(newChar);
-            for (var i = replaceIndex + 1; i < @this.Length; i++)
-            {
-                ref readonly var c = ref @this[i];
-                builder.Append((c == oldChar) ? newChar : c);
-            }
-
-            return StringBuilderPool.GetStringAndReturn(builder).AsSpan();
-        }
-
-        public static ReadOnlySpan<char> Replace(this ReadOnlySpan<char> @this, string oldText, string newText)
-        {
-            var replaceIndex = @this.IndexOf(oldText.AsSpan());
-            if (replaceIndex < 0)
-            {
-                return @this;
-            }
-
-            // TODO: use replaceIndex to optimize
-
-            return @this.ToString().Replace(oldText, newText).AsSpan();
-        }
-
-        public static ReadOnlySpan<char> Reversed(this ReadOnlySpan<char> @this)
+        public static ReadOnlySpan<char> GetReversed(this ReadOnlySpan<char> @this)
         {
             if (@this.Length <= 1)
             {
                 return @this;
             }
 
-            var chars = new char[@this.Length];
-            var lastIndex = @this.Length - 1;
-            for (var i = 0; i < chars.Length; i++)
+            var result = @this.ToString();
+            var indexLimit = result.Length / 2;
+            unsafe
             {
-                chars[i] = @this[lastIndex - i];
+                fixed (char* p = result)
+                {
+                    for (int i = 0, otherI = result.Length - 1; i < indexLimit; i++, otherI--)
+                    {
+                        ReferenceHelpers.Swap(ref p[i], ref p[otherI]);
+                    }
+                }
             }
-
-            return new ReadOnlySpan<char>(chars);
+            return result.AsSpan();
         }
 
         public static ReadOnlySpan<char> Limit(this ReadOnlySpan<char> @this, int maxLength)
