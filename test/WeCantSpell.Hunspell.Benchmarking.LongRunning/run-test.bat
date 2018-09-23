@@ -1,0 +1,1 @@
+..\..\..\..\..\packages\NBench.Runner.1.2.2\tools\netcoreapp2.1\NBench.Runner.exe .\WeCantSpell.Hunspell.Benchmarking.LongRunning.dll --output perf
