@@ -75,7 +75,13 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public static string Replace(this string @this, int index, int removeCount, string replacement)
         {
-            var builder = StringBuilderPool.Get(@this, Math.Max(@this.Length, @this.Length + replacement.Length - removeCount));
+            var expectedLength = @this.Length;
+            if (replacement.Length > removeCount)
+            {
+                expectedLength += (replacement.Length - removeCount);
+            }
+
+            var builder = StringBuilderPool.Get(@this, expectedLength);
             builder.Replace(index, removeCount, replacement);
             return StringBuilderPool.GetStringAndReturn(builder);
         }

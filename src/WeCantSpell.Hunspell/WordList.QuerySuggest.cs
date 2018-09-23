@@ -919,7 +919,7 @@ namespace WeCantSpell.Hunspell
             /// </summary>
             private int LongSwapChar(List<string> wlst, string word, bool cpdSuggest)
             {
-                var candidate = StringBuilderPool.Get(word, word.Length);
+                var candidate = StringBuilderPool.Get(word);
                 // try swapping not adjacent chars one by one
                 for (var p = 0; p < candidate.Length; p++)
                 {
@@ -956,7 +956,7 @@ namespace WeCantSpell.Hunspell
                     return wlst.Count;
                 }
 
-                var candidate = StringBuilderPool.Get(word, word.Length);
+                var candidate = StringBuilderPool.Get(word);
 
                 // try swapping adjacent chars one by one
                 var lastCandidateIndex = candidate.Length - 1;
@@ -2441,7 +2441,7 @@ namespace WeCantSpell.Hunspell
                     return string.Empty;
                 }
 
-                var word = StringBuilderPool.Get(inword, 0, Math.Min(inword.Length, MaxPhoneTUtf8Len));
+                var word = StringBuilderPool.Get(inword.AsSpan().Limit(MaxPhoneTUtf8Len));
                 var target = StringBuilderPool.Get();
 
                 // check word

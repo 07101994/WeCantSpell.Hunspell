@@ -728,7 +728,7 @@ namespace WeCantSpell.Hunspell
                 StringBuilder affixText;
                 if (affixSlashIndex >= 0)
                 {
-                    affixText = StringBuilderPool.Get(affixInput, 0, affixSlashIndex);
+                    affixText = StringBuilderPool.Get(affixInput.AsSpan(0,affixSlashIndex));
 
                     if (Builder.IsAliasF)
                     {

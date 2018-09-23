@@ -371,7 +371,7 @@ namespace WeCantSpell.Hunspell
                 var pos = @base.IndexOf("ss", nPos, StringComparison.Ordinal);
                 if (pos >= 0 && n < MaxSharps)
                 {
-                    var baseBuilder = StringBuilderPool.Get(@base, @base.Length);
+                    var baseBuilder = StringBuilderPool.Get(@base);
                     baseBuilder[pos] = 'ß';
                     baseBuilder.Remove(pos + 1, 1);
                     @base = baseBuilder.ToString();

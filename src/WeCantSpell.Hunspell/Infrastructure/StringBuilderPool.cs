@@ -14,10 +14,13 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         private static StringBuilder Cache;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public static StringBuilder Get() => GetClearedBuilder();
+        public static StringBuilder Get()
+        {
+            var taken = Interlocked.Exchange(ref Cache, null);
+            return taken != null
+                ? taken.Clear()
+                : new StringBuilder();
+        }
 
         public static StringBuilder Get(string value) =>
             GetClearedBuilderWithCapacity(value.Length).Append(value);
@@ -31,15 +34,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static StringBuilder Get(int capacity) =>
             GetClearedBuilderWithCapacity(capacity);
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public static StringBuilder Get(string value, int valueStartIndex, int valueLength) =>
-            Get(value, valueStartIndex, valueLength, valueLength);
-
-        public static StringBuilder Get(string value, int valueStartIndex, int valueLength, int capacity) =>
-            GetClearedBuilderWithCapacity(capacity).Append(value, valueStartIndex, valueLength);
-
         public static StringBuilder Get(ReadOnlySpan<char> value) =>
             GetClearedBuilderWithCapacity(value.Length).Append(value);
 
@@ -49,10 +43,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
         public static void Return(StringBuilder builder)
         {
 #if DEBUG
-            if (builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
 #endif
 
             if (builder.Capacity <= MaxCachedBuilderCapacity)
@@ -69,17 +60,6 @@ namespace WeCantSpell.Hunspell.Infrastructure
             var value = builder.ToString();
             Return(builder);
             return value;
-        }
-
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        private static StringBuilder GetClearedBuilder()
-        {
-            var taken = Interlocked.Exchange(ref Cache, null);
-            return taken != null
-                ? taken.Clear()
-                : new StringBuilder();
         }
 
 #if !NO_INLINE

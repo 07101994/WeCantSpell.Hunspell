@@ -65,7 +65,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
 #endif
             if (buffer.Length <= MaxCachePoolBufferLength)
             {
-                Interlocked.Exchange(ref BufferPoolCache, buffer);
+                Volatile.Write(ref BufferPoolCache, buffer);
             }
         }
     }
