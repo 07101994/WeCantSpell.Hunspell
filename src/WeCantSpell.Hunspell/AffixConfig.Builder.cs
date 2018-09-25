@@ -499,10 +499,7 @@ namespace WeCantSpell.Hunspell
             public string Dedup(string value)
             {
 #if DEBUG
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
+                if (value == null) throw new ArgumentNullException(nameof(value));
 #endif
                 return StringDeduper.GetEqualOrAdd(value);
             }

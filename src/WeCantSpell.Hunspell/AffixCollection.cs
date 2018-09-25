@@ -148,46 +148,153 @@ namespace WeCantSpell.Hunspell
 
         IEnumerator IEnumerable.GetEnumerator() => AffixesByFlag.Values.GetEnumerator();
 
-        internal List<AffixEntryGroup<TEntry>> GetByFlags(FlagSet flags)
+        internal GroupsForFlagsFilterEnumerable GetByFlags(FlagSet flags)
         {
 #if DEBUG
-            if (flags == null)
-            {
-                throw new ArgumentNullException(nameof(flags));
-            }
+            if (flags == null) throw new ArgumentNullException(nameof(flags));
 #endif
 
-            var results = new List<AffixEntryGroup<TEntry>>(flags.Count);
-            foreach(var flag in flags)
-            {
-                if (AffixesByFlag.TryGetValue(flag, out AffixEntryGroup<TEntry> result))
-                {
-                    results.Add(result);
-                }
-            }
-
-            return results;
+            return new GroupsForFlagsFilterEnumerable(flags.items, AffixesByFlag);
         }
 
-        internal List<AffixEntryGroup<TEntry>> GetAffixesWithEmptyKeysAndFlag(FlagSet flags)
+        internal readonly struct GroupsForFlagsFilterEnumerable : IEnumerable<AffixEntryGroup<TEntry>>
         {
-#if DEBUG
-            if (flags == null)
+            internal GroupsForFlagsFilterEnumerable(FlagValue[] flags, Dictionary<FlagValue, AffixEntryGroup<TEntry>> affixesByFlag)
             {
-                throw new ArgumentNullException(nameof(flags));
+                this.flags = flags;
+                this.affixesByFlag = affixesByFlag;
             }
-#endif
 
-            var results = new List<AffixEntryGroup<TEntry>>(flags.Count);
-            foreach (var group in AffixesWithEmptyKeys)
+            private readonly FlagValue[] flags;
+
+            private readonly Dictionary<FlagValue, AffixEntryGroup<TEntry>> affixesByFlag;
+
+            public Enumerator GetEnumerator() => new Enumerator(flags, affixesByFlag);
+
+            IEnumerator<AffixEntryGroup<TEntry>> IEnumerable<AffixEntryGroup<TEntry>>.GetEnumerator() => GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+            public struct Enumerator : IEnumerator<AffixEntryGroup<TEntry>>
             {
-                if (flags.Contains(group.AFlag))
+                internal Enumerator(FlagValue[] flags, Dictionary<FlagValue, AffixEntryGroup<TEntry>> affixesByFlag)
                 {
-                    results.Add(group);
+                    this.flags = flags;
+                    this.affixesByFlag = affixesByFlag;
+                    flagEnumeratorIndex = -1;
+                    Current = null;
+                }
+
+                private int flagEnumeratorIndex;
+
+                private readonly FlagValue[] flags;
+
+                private readonly Dictionary<FlagValue, AffixEntryGroup<TEntry>> affixesByFlag;
+
+                public AffixEntryGroup<TEntry> Current { get; private set; }
+
+                object IEnumerator.Current => Current;
+
+                public void Dispose()
+                {
+                }
+
+                public bool MoveNext()
+                {
+                    while ((++flagEnumeratorIndex) < flags.Length)
+                    {
+                        if (affixesByFlag.TryGetValue(flags[flagEnumeratorIndex], out var result))
+                        {
+                            Current = result;
+                            return true;
+                        }
+                    }
+
+                    Current = null;
+                    return false;
+                }
+
+                public void Reset()
+                {
+                    flagEnumeratorIndex = -1;
+                    Current = null;
                 }
             }
+        }
 
-            return results;
+        internal EmptyKeyGroupsForFlagsFilterEnumerable GetAffixesWithEmptyKeysAndFlag(FlagSet flags)
+        {
+#if DEBUG
+            if (flags == null) throw new ArgumentNullException(nameof(flags));
+#endif
+
+            return new EmptyKeyGroupsForFlagsFilterEnumerable(flags, AffixesWithEmptyKeys.items);
+        }
+
+        internal readonly struct EmptyKeyGroupsForFlagsFilterEnumerable : IEnumerable<AffixEntryGroup<TEntry>>
+        {
+            internal EmptyKeyGroupsForFlagsFilterEnumerable(FlagSet flags, AffixEntryGroup<TEntry>[] affixesWithEmptyKeys)
+            {
+                this.flags = flags;
+                this.affixesWithEmptyKeys = affixesWithEmptyKeys;
+            }
+
+            private readonly FlagSet flags;
+
+            private readonly AffixEntryGroup<TEntry>[] affixesWithEmptyKeys;
+
+            public Enumerator GetEnumerator() => new Enumerator(flags, affixesWithEmptyKeys);
+
+            IEnumerator<AffixEntryGroup<TEntry>> IEnumerable<AffixEntryGroup<TEntry>>.GetEnumerator() => GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+            public struct Enumerator : IEnumerator<AffixEntryGroup<TEntry>>
+            {
+                internal Enumerator(FlagSet flags, AffixEntryGroup<TEntry>[] affixesWithEmptyKeys)
+                {
+                    this.flags = flags;
+                    this.affixesWithEmptyKeys = affixesWithEmptyKeys;
+                    groupIndex = -1;
+                    Current = null;
+                }
+
+                private int groupIndex;
+
+                private readonly FlagSet flags;
+
+                private readonly AffixEntryGroup<TEntry>[] affixesWithEmptyKeys;
+
+                public AffixEntryGroup<TEntry> Current { get; private set; }
+
+                object IEnumerator.Current => Current;
+
+                public void Dispose()
+                {
+                }
+
+                public bool MoveNext()
+                {
+                    while ((++groupIndex) < affixesWithEmptyKeys.Length)
+                    {
+                        ref readonly var group = ref affixesWithEmptyKeys[groupIndex];
+                        if (flags.Contains(group.AFlag))
+                        {
+                            Current = group;
+                            return true;
+                        }
+                    }
+
+                    Current = null;
+                    return false;
+                }
+
+                public void Reset()
+                {
+                    groupIndex = -1;
+                    Current = null;
+                }
+            }
         }
 
         internal IEnumerable<Affix<TEntry>> GetMatchingWithDotAffixes(string word, Func<string, string, bool> predicate) =>
@@ -229,33 +336,31 @@ namespace WeCantSpell.Hunspell
 
         internal List<Affix<SuffixEntry>> GetMatchingAffixes(string word, FlagSet groupFlagFilter = null)
         {
-            if (string.IsNullOrEmpty(word))
-            {
-                return new List<Affix<SuffixEntry>>(0);
-            }
-
             var results = new List<Affix<SuffixEntry>>();
 
-            if (AffixesByIndexedByKey.TryGetValue(word[word.Length - 1], out AffixEntryGroupCollection<SuffixEntry> indexedGroups))
+            if (!string.IsNullOrEmpty(word))
             {
-                foreach (var group in indexedGroups)
+                if (AffixesByIndexedByKey.TryGetValue(word[word.Length - 1], out AffixEntryGroupCollection<SuffixEntry> indexedGroups))
                 {
-                    if (groupFlagFilter == null || groupFlagFilter.Contains(group.AFlag))
+                    foreach (var group in indexedGroups)
                     {
-                        foreach (var entry in group.Entries)
+                        if (groupFlagFilter == null || groupFlagFilter.Contains(group.AFlag))
                         {
-                            if (HunspellTextFunctions.IsReverseSubset(entry.Key, word))
+                            foreach (var entry in group.Entries)
                             {
-                                results.Add(Affix<SuffixEntry>.Create(entry, group));
+                                if (HunspellTextFunctions.IsReverseSubset(entry.Key, word))
+                                {
+                                    results.Add(Affix<SuffixEntry>.Create(entry, group));
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (AffixesWithDots.HasItems)
-            {
-                results.AddRange(GetMatchingWithDotAffixes(word, HunspellTextFunctions.IsReverseSubset));
+                if (AffixesWithDots.HasItems)
+                {
+                    results.AddRange(GetMatchingWithDotAffixes(word, HunspellTextFunctions.IsReverseSubset));
+                }
             }
 
             return results;
@@ -294,30 +399,28 @@ namespace WeCantSpell.Hunspell
 
         internal List<Affix<PrefixEntry>> GetMatchingAffixes(string word)
         {
-            if (string.IsNullOrEmpty(word))
-            {
-                return new List<Affix<PrefixEntry>>(0);
-            }
-
             var results = new List<Affix<PrefixEntry>>();
 
-            if (AffixesByIndexedByKey.TryGetValue(word[0], out AffixEntryGroupCollection<PrefixEntry> indexedGroups))
+            if (!string.IsNullOrEmpty(word))
             {
-                foreach (var group in indexedGroups)
+                if (AffixesByIndexedByKey.TryGetValue(word[0], out AffixEntryGroupCollection<PrefixEntry> indexedGroups))
                 {
-                    foreach (var entry in group.Entries)
+                    foreach (var group in indexedGroups)
                     {
-                        if (HunspellTextFunctions.IsSubset(entry.Key, word))
+                        foreach (var entry in group.Entries)
                         {
-                            results.Add(Affix<PrefixEntry>.Create(entry, group));
+                            if (HunspellTextFunctions.IsSubset(entry.Key, word))
+                            {
+                                results.Add(Affix<PrefixEntry>.Create(entry, group));
+                            }
                         }
                     }
                 }
-            }
 
-            if (AffixesWithDots.HasItems)
-            {
-                results.AddRange(GetMatchingWithDotAffixes(word, HunspellTextFunctions.IsSubset));
+                if (AffixesWithDots.HasItems)
+                {
+                    results.AddRange(GetMatchingWithDotAffixes(word, HunspellTextFunctions.IsSubset));
+                }
             }
 
             return results;
