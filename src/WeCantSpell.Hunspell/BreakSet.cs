@@ -21,9 +21,9 @@ namespace WeCantSpell.Hunspell
         }
 
         /// <summary>
-        /// Calculate break points for recursion limit.
+        /// Test break points for a recursion limit.
         /// </summary>
-        internal int FindRecursionLimit(string scw)
+        internal bool TestRecursionLimit(string scw, int maxRecursionLimit)
         {
             int nbr = 0;
 
@@ -31,16 +31,27 @@ namespace WeCantSpell.Hunspell
             {
                 foreach (var breakEntry in items)
                 {
-                    int pos = 0;
-                    while ((pos = scw.IndexOf(breakEntry, pos, StringComparison.Ordinal)) >= 0)
+                    if (string.IsNullOrEmpty(breakEntry))
+                    {
+                        continue;
+                    }
+
+                    int pos = scw.IndexOf(breakEntry, StringComparison.Ordinal);
+                    while (pos >= 0)
                     {
                         nbr++;
-                        pos += breakEntry.Length;
+
+                        if (nbr >= maxRecursionLimit)
+                        {
+                            return true;
+                        }
+
+                        pos = scw.IndexOf(breakEntry, pos + breakEntry.Length, StringComparison.Ordinal);
                     }
                 }
             }
 
-            return nbr;
+            return false;
         }
     }
 }

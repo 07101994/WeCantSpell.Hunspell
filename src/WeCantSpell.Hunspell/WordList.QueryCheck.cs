@@ -93,7 +93,7 @@ namespace WeCantSpell.Hunspell
                 if (Affix.BreakPoints.HasItems && !EnumEx.HasFlag(resultType, SpellCheckResultType.Forbidden))
                 {
                     // calculate break points for recursion limit
-                    if (Affix.BreakPoints.FindRecursionLimit(scw) >= 10)
+                    if (Affix.BreakPoints.TestRecursionLimit(scw, 10))
                     {
                         return new SpellCheckResult(root, resultType, false);
                     }
