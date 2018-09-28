@@ -1,21 +1,14 @@
 ﻿using WeCantSpell.Hunspell.Infrastructure;
 using System;
-using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
-
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
 
 namespace WeCantSpell.Hunspell
 {
     public struct CharacterCondition :
         IEquatable<CharacterCondition>
     {
-        private static Regex ConditionParsingRegex = new Regex(
-            @"^(\[[^\]]*\]|\.|[^\[\]\.])*$",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        public static readonly CharacterCondition AllowNone = new CharacterCondition(CharacterSet.Empty, false);
 
         public static readonly CharacterCondition AllowAny = new CharacterCondition(CharacterSet.Empty, true);
 
@@ -35,51 +28,61 @@ namespace WeCantSpell.Hunspell
                 return CharacterConditionGroup.Empty;
             }
 
-            var match = ConditionParsingRegex.Match(text);
-            if (!match.Success || match.Groups.Count < 2)
-            {
-                return CharacterConditionGroup.Empty;
-            }
+            var conditions = new List<CharacterCondition>(text.Length);
 
-            var captures = match.Groups[1].Captures;
-            var conditions = new CharacterCondition[captures.Count];
-            for (var captureIndex = 0; captureIndex < captures.Count; captureIndex++)
+            for (int searchIndex = 0; searchIndex < text.Length; searchIndex++)
             {
-                conditions[captureIndex] = ParseSingle(captures[captureIndex].Value.AsSpan());
-            }
-
-            return CharacterConditionGroup.TakeArray(conditions);
-        }
-
-        private static CharacterCondition ParseSingle(ReadOnlySpan<char> text)
-        {
-#if DEBUG
-            if (text == null) throw new ArgumentNullException(nameof(text));
-#endif
-
-            if (text.Length == 0)
-            {
-                return AllowAny;
-            }
-            if (text.Length == 1)
-            {
-                var singleChar = text[0];
-                if (singleChar == '.')
+                var c = text[searchIndex];
+                if (c != '[')
                 {
-                    return AllowAny;
+                    conditions.Add(ParseSingle(c));
+                    continue;
                 }
 
-                return Create(singleChar, false);
+                var endIndex = searchIndex + 1;
+                for (; endIndex < text.Length && text[endIndex] != ']'; endIndex++) ;
+
+                if (endIndex < text.Length)
+                {
+                    conditions.Add(ParseFromClass(text.AsSpan(searchIndex + 1, endIndex - searchIndex - 1)));
+                    searchIndex = endIndex;
+                    continue;
+                }
+                else
+                {
+                    return CharacterConditionGroup.Empty; // Invalid sequence detected
+                }
             }
 
-            if (!text.StartsWith('[') || !text.EndsWith(']'))
+            return CharacterConditionGroup.Create(conditions);
+        }
+
+        private static CharacterCondition ParseSingle(char singleChar) =>
+            singleChar == '.'
+                ? AllowAny
+                : Create(singleChar, false);
+
+        private static CharacterCondition ParseFromClass(ReadOnlySpan<char> text)
+        {
+            if (text.IsEmpty)
             {
-                throw new InvalidOperationException();
+                return AllowNone;
             }
 
-            var restricted = text[1] == '^';
-            text = restricted ? text.Slice(2, text.Length - 3) : text.Slice(1, text.Length - 2);
-            return TakeArray(text.ToArray(), restricted);
+            var restricted = text[0] == '^';
+            if (text.Length == 1)
+            {
+                return restricted ? AllowAny : Create(text[0], false);
+            }
+
+            if (restricted)
+            {
+                return text.Length == 2
+                    ? Create(text[1], true)
+                    : TakeArray(text.Slice(1).ToArray(), true);
+            }
+
+            return TakeArray(text.ToArray(), false);
         }
 
         public CharacterCondition(CharacterSet characters, bool restricted)

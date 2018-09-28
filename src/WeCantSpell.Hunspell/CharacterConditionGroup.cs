@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using WeCantSpell.Hunspell.Infrastructure;
 
@@ -12,7 +13,24 @@ namespace WeCantSpell.Hunspell
 
         public static CharacterConditionGroup Create(CharacterCondition condition) => TakeArray(new[] { condition });
 
-        internal static CharacterConditionGroup TakeArray(CharacterCondition[] conditions) => conditions == null ? Empty : new CharacterConditionGroup(conditions);
+        public static CharacterConditionGroup Create(IEnumerable<CharacterCondition> conditions)
+        {
+            if (conditions == null)
+            {
+                return Empty;
+            }
+
+            var array = conditions.ToArray();
+            return array.Length == 0 ? Empty : TakeArray(array);
+        }
+
+        internal static CharacterConditionGroup TakeArray(CharacterCondition[] conditions)
+        {
+#if DEBUG
+            if (conditions == null) throw new ArgumentNullException(nameof(conditions));
+#endif
+            return new CharacterConditionGroup(conditions);
+        }
 
         private CharacterConditionGroup(CharacterCondition[] conditions)
             : base(conditions)
