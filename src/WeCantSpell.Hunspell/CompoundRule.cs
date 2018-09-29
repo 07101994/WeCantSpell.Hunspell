@@ -19,11 +19,7 @@ namespace WeCantSpell.Hunspell
         {
         }
 
-        public bool IsWildcard(int index)
-        {
-            var value = this[index];
-            return value == '*' || value == '?';
-        }
+        internal bool IsValidWildcardAtIndex(int index) => index >= 0 && index < Count && this[index].IsWildcard;
 
         internal bool ContainsRuleFlagForEntry(WordEntryDetail details)
         {

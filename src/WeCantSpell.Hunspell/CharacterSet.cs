@@ -20,7 +20,11 @@ namespace WeCantSpell.Hunspell
             if (values == null) throw new ArgumentNullException(nameof(values));
 #endif
 
-            Array.Sort(values);
+            if (values.Length > 1)
+            {
+                Array.Sort(values);
+            }
+
             return new CharacterSet(values);
         }
 

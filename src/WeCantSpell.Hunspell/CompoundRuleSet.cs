@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using WeCantSpell.Hunspell.Infrastructure;
 
@@ -44,6 +43,8 @@ namespace WeCantSpell.Hunspell
                 new MetacharData()
             };
 
+            MetacharData currentBt;
+
             foreach (var compoundRule in items)
             {
                 var pp = 0; // pattern position
@@ -54,13 +55,14 @@ namespace WeCantSpell.Hunspell
                 {
                     while (pp < compoundRule.Count && wp <= words.WNum)
                     {
-                        if (pp + 1 < compoundRule.Count && compoundRule.IsWildcard(pp + 1))
+                        if (compoundRule.IsValidWildcardAtIndex(pp + 1))
                         {
                             var wend = compoundRule[pp + 1] == '?' ? wp : words.WNum;
                             ok2 = true;
                             pp += 2;
-                            btinfo[bt].btpp = pp;
-                            btinfo[bt].btwp = wp;
+                            currentBt = btinfo[bt];
+                            currentBt.btpp = pp;
+                            currentBt.btwp = wp;
 
                             while (wp <= wend)
                             {
@@ -78,11 +80,11 @@ namespace WeCantSpell.Hunspell
                                 ok2 = false;
                             }
 
-                            btinfo[bt].btnum = wp - btinfo[bt].btwp;
+                            currentBt.btnum = wp - currentBt.btwp;
 
-                            if (btinfo[bt].btnum > 0)
+                            if (currentBt.btnum > 0)
                             {
-                                ++bt;
+                                bt++;
                                 btinfo.Add(new MetacharData());
                             }
                             if (ok2)
@@ -102,7 +104,7 @@ namespace WeCantSpell.Hunspell
                             pp++;
                             wp++;
 
-                            if (compoundRule.Count == pp && wp <= words.WNum)
+                            if (compoundRule.Count <= pp && wp <= words.WNum)
                             {
                                 ok = false;
                             }
@@ -112,13 +114,7 @@ namespace WeCantSpell.Hunspell
                     if (ok && ok2)
                     {
                         var r = pp;
-                        while (
-                            compoundRule.Count > r
-                            &&
-                            r + 1 < compoundRule.Count
-                            &&
-                            compoundRule.IsWildcard(r + 1)
-                        )
+                        while (compoundRule.IsValidWildcardAtIndex(r + 1))
                         {
                             r += 2;
                         }
@@ -130,59 +126,41 @@ namespace WeCantSpell.Hunspell
                     }
 
                     // backtrack
-                    if (bt != 0)
+                    if (bt > 0)
                     {
+                        ok = true;
+
                         do
                         {
-                            ok = true;
-                            btinfo[bt - 1].btnum--;
-                            pp = btinfo[bt - 1].btpp;
-                            wp = btinfo[bt - 1].btwp + btinfo[bt - 1].btnum;
+                            currentBt = btinfo[bt - 1];
+                            currentBt.btnum--;
                         }
-                        while ((btinfo[bt - 1].btnum < 0) && (--bt != 0));
+                        while ((currentBt.btnum < 0) && (--bt != 0));
+
+                        pp = currentBt.btpp;
+                        wp = currentBt.btwp + currentBt.btnum;
                     }
 
                 }
-                while (bt != 0);
+                while (bt > 0);
 
-                if (
-                    ok
-                    &&
-                    ok2
-                    &&
-                    (
-                        !all
-                        ||
-                        compoundRule.Count <= pp
-                    )
-                )
+                if (ok && ok2)
                 {
-                    return true;
-                }
+                    if (!all || compoundRule.Count <= pp)
+                    {
+                        return true;
+                    }
 
-                // check zero ending
-                while (
-                    ok
-                    &&
-                    ok2
-                    &&
-                    pp + 1 < compoundRule.Count
-                    &&
-                    compoundRule.IsWildcard(pp + 1)
-                )
-                {
-                    pp += 2;
-                }
+                    // check zero ending
+                    while (compoundRule.IsValidWildcardAtIndex(pp + 1))
+                    {
+                        pp += 2;
+                    }
 
-                if (
-                    ok
-                    &&
-                    ok2
-                    &&
-                    compoundRule.Count <= pp
-                )
-                {
-                    return true;
+                    if (compoundRule.Count <= pp)
+                    {
+                        return true;
+                    }
                 }
             }
 
