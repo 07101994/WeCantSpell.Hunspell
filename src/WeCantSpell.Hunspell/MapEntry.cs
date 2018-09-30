@@ -6,11 +6,11 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class MapEntry : ArrayWrapper<string>
     {
-        public static readonly MapEntry Empty = TakeArray(ArrayEx<string>.Empty);
+        public static readonly MapEntry Empty = new MapEntry(ArrayEx<string>.Empty);
 
-        public static MapEntry Create(IEnumerable<string> values) => values == null ? Empty : TakeArray(values.ToArray());
+        public static MapEntry Create(IEnumerable<string> values) => TakeArray(values?.ToArray());
 
-        internal static MapEntry TakeArray(string[] values) => values == null ? Empty : new MapEntry(values);
+        internal static MapEntry TakeArray(string[] values) => values == null || values.Length == 0 ? Empty : new MapEntry(values);
 
         private MapEntry(string[] values)
             : base(values)

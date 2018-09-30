@@ -7,13 +7,13 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class BreakSet : ArrayWrapper<string>
     {
-        public static readonly BreakSet Empty = TakeArray(ArrayEx<string>.Empty);
+        public static readonly BreakSet Empty = new BreakSet(ArrayEx<string>.Empty);
 
-        internal static BreakSet TakeArray(string[] breaks) => breaks == null ? Empty : new BreakSet(breaks);
+        public static BreakSet Create(List<string> breaks) => TakeArray(breaks?.ToArray());
 
-        public static BreakSet Create(List<string> breaks) => breaks == null ? Empty : TakeArray(breaks.ToArray());
+        public static BreakSet Create(IEnumerable<string> breaks) => TakeArray(breaks?.ToArray());
 
-        public static BreakSet Create(IEnumerable<string> breaks) => breaks == null ? Empty : TakeArray(breaks.ToArray());
+        internal static BreakSet TakeArray(string[] breaks) => breaks == null || breaks.Length == 0 ? Empty : new BreakSet(breaks);
 
         private BreakSet(string[] breaks)
             : base(breaks)

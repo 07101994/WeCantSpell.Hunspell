@@ -130,7 +130,10 @@ namespace WeCantSpell.Hunspell
                 return Empty;
             }
 
-            Array.Sort(values);
+            if (values.Length > 0)
+            {
+                Array.Sort(values);
+            }
 
             return new FlagSet(values);
         }

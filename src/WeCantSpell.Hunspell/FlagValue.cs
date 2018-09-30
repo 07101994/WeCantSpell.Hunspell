@@ -3,10 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell
 {
     public readonly struct FlagValue :
@@ -19,54 +15,24 @@ namespace WeCantSpell.Hunspell
     {
         private const char ZeroValue = '\0';
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static implicit operator int(FlagValue flag) => flag.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static implicit operator char(FlagValue flag) => flag.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator !=(FlagValue a, FlagValue b) => a.value != b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator ==(FlagValue a, FlagValue b) => a.value == b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator >=(FlagValue a, FlagValue b) => a.value >= b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator <=(FlagValue a, FlagValue b) => a.value <= b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator >(FlagValue a, FlagValue b) => a.value > b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool operator <(FlagValue a, FlagValue b) => a.value < b.value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         internal static FlagValue Create(char high, char low) => new FlagValue(unchecked((char)((high << 8) | low)));
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public static bool TryParseFlag(string text, FlagMode mode, out FlagValue value) =>
             TryParseFlag(text.AsSpan(), mode, out value);
 
@@ -123,9 +89,6 @@ namespace WeCantSpell.Hunspell
         public static FlagSet ParseFlags(string text, FlagMode mode) =>
             ParseFlags(text.AsSpan(), mode);
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         internal static FlagSet ParseFlags(ReadOnlySpan<char> text, FlagMode mode) =>
             FlagSet.TakeArray(ParseFlagsInOrder(text, mode));
 
@@ -184,57 +147,28 @@ namespace WeCantSpell.Hunspell
             return values;
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public FlagValue(char value) =>
+        public FlagValue(char value)
+        {
             this.value = value;
+        }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        public FlagValue(int value) =>
+        public FlagValue(int value)
+        {
             this.value = checked((char)value);
+        }
 
         private readonly char value;
 
-        public bool HasValue
-        {
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-            get => value != ZeroValue;
-        }
+        public bool HasValue => value != ZeroValue;
 
-        public bool IsZero
-        {
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-            get => value == ZeroValue;
-        }
+        public bool IsZero => value == ZeroValue;
 
-        public bool IsWildcard
-        {
-#if !NO_INLINE
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-            get => value == '*' || value == '?';
-        }
+        public bool IsWildcard => value == '*' || value == '?';
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public bool Equals(FlagValue other) => other.value == value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public bool Equals(int other) => other == value;
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
         public bool Equals(char other) => other == value;
 
         public override bool Equals(object obj)

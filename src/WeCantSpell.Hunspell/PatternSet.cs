@@ -11,13 +11,12 @@ namespace WeCantSpell.Hunspell
 {
     public class PatternSet : ArrayWrapper<PatternEntry>
     {
-        public static readonly PatternSet Empty = TakeArray(ArrayEx<PatternEntry>.Empty);
+        public static readonly PatternSet Empty = new PatternSet(ArrayEx<PatternEntry>.Empty);
 
-        public static PatternSet Create(IEnumerable<PatternEntry> patterns) =>
-            patterns == null ? Empty : TakeArray(patterns.ToArray());
+        public static PatternSet Create(IEnumerable<PatternEntry> patterns) => TakeArray(patterns?.ToArray());
 
         internal static PatternSet TakeArray(PatternEntry[] patterns) =>
-            patterns == null ? Empty : new PatternSet(patterns);
+            patterns == null || patterns.Length == 0 ? Empty : new PatternSet(patterns);
 
         private PatternSet(PatternEntry[] patterns)
             : base(patterns)

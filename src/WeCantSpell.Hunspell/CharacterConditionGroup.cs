@@ -7,30 +7,17 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class CharacterConditionGroup : ArrayWrapper<CharacterCondition>
     {
-        public static readonly CharacterConditionGroup Empty = TakeArray(ArrayEx<CharacterCondition>.Empty);
+        public static readonly CharacterConditionGroup Empty = new CharacterConditionGroup(ArrayEx<CharacterCondition>.Empty);
 
         public static readonly CharacterConditionGroup AllowAnySingleCharacter = Create(CharacterCondition.AllowAny);
 
         public static CharacterConditionGroup Create(CharacterCondition condition) => TakeArray(new[] { condition });
 
-        public static CharacterConditionGroup Create(IEnumerable<CharacterCondition> conditions)
-        {
-            if (conditions == null)
-            {
-                return Empty;
-            }
+        public static CharacterConditionGroup Create(IEnumerable<CharacterCondition> conditions) =>
+            TakeArray(conditions?.ToArray());
 
-            var array = conditions.ToArray();
-            return array.Length == 0 ? Empty : TakeArray(array);
-        }
-
-        internal static CharacterConditionGroup TakeArray(CharacterCondition[] conditions)
-        {
-#if DEBUG
-            if (conditions == null) throw new ArgumentNullException(nameof(conditions));
-#endif
-            return new CharacterConditionGroup(conditions);
-        }
+        internal static CharacterConditionGroup TakeArray(CharacterCondition[] conditions) =>
+            (conditions == null || conditions.Length == 0) ? Empty : new CharacterConditionGroup(conditions);
 
         private CharacterConditionGroup(CharacterCondition[] conditions)
             : base(conditions)

@@ -8,13 +8,12 @@ namespace WeCantSpell.Hunspell
 {
     public class WordEntryDetail : IEquatable<WordEntryDetail>
     {
-        public static bool operator ==(WordEntryDetail a, WordEntryDetail b) =>
-            ReferenceEquals(a, null) ? ReferenceEquals(b, null) : a.Equals(b);
+        public static bool operator ==(WordEntryDetail a, WordEntryDetail b) => a is null ? b is null : a.Equals(b);
 
 #if !NO_INLINE
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-        public static bool operator !=(WordEntryDetail a, WordEntryDetail b) => !(a == b);
+        public static bool operator !=(WordEntryDetail a, WordEntryDetail b) => a is null ? !(b is null) : !a.Equals(b);
 
         public static WordEntryDetail Default { get; } = new WordEntryDetail(FlagSet.Empty, MorphSet.Empty, WordEntryOptions.None);
 
@@ -64,10 +63,6 @@ namespace WeCantSpell.Hunspell
             if (ReferenceEquals(other, null))
             {
                 return false;
-            }
-            if (ReferenceEquals(this, other))
-            {
-                return true;
             }
 
             return other.Options == Options

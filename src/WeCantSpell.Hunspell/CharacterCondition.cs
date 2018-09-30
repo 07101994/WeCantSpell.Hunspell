@@ -5,21 +5,20 @@ using System.Linq;
 
 namespace WeCantSpell.Hunspell
 {
-    public struct CharacterCondition :
-        IEquatable<CharacterCondition>
+    public struct CharacterCondition : IEquatable<CharacterCondition>
     {
         public static readonly CharacterCondition AllowNone = new CharacterCondition(CharacterSet.Empty, false);
 
         public static readonly CharacterCondition AllowAny = new CharacterCondition(CharacterSet.Empty, true);
 
+        public static CharacterCondition Create(char character, bool restricted) => new CharacterCondition(character, restricted);
+
+        public static CharacterCondition Create(IEnumerable<char> characters, bool restricted) => TakeArray(characters?.ToArray(), restricted);
+
         internal static CharacterCondition TakeArray(char[] characters, bool restricted) =>
-            new CharacterCondition(characters, restricted);
-
-        public static CharacterCondition Create(char character, bool restricted) =>
-            new CharacterCondition(character, restricted);
-
-        public static CharacterCondition Create(IEnumerable<char> characters, bool restricted) =>
-            TakeArray(characters == null ? ArrayEx<char>.Empty : characters.ToArray(), restricted);
+            (characters == null || characters.Length == 0)
+            ? (restricted ? AllowAny : AllowNone)
+            : new CharacterCondition(characters, restricted);
 
         public static CharacterConditionGroup Parse(string text)
         {
@@ -58,9 +57,7 @@ namespace WeCantSpell.Hunspell
         }
 
         private static CharacterCondition ParseSingle(char singleChar) =>
-            singleChar == '.'
-                ? AllowAny
-                : Create(singleChar, false);
+            singleChar == '.' ? AllowAny : Create(singleChar, false);
 
         private static CharacterCondition ParseFromClass(ReadOnlySpan<char> text)
         {

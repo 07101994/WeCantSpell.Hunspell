@@ -6,11 +6,11 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class PhoneTable : ArrayWrapper<PhoneticEntry>
     {
-        public static readonly PhoneTable Empty = TakeArray(ArrayEx<PhoneticEntry>.Empty);
+        public static readonly PhoneTable Empty = new PhoneTable(ArrayEx<PhoneticEntry>.Empty);
 
-        public static PhoneTable Create(IEnumerable<PhoneticEntry> entries) => entries == null ? Empty : TakeArray(entries.ToArray());
+        public static PhoneTable Create(IEnumerable<PhoneticEntry> entries) => TakeArray(entries?.ToArray());
 
-        internal static PhoneTable TakeArray(PhoneticEntry[] entries) => entries == null ? Empty : new PhoneTable(entries);
+        internal static PhoneTable TakeArray(PhoneticEntry[] entries) => entries == null || entries.Length == 0 ? Empty : new PhoneTable(entries);
 
         private PhoneTable(PhoneticEntry[] entries)
             : base(entries)

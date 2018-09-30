@@ -4,10 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using WeCantSpell.Hunspell.Infrastructure;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell
 {
     public class MultiReplacementTable :
@@ -17,13 +13,13 @@ namespace WeCantSpell.Hunspell
         IReadOnlyDictionary<string, MultiReplacementEntry>
 #endif
     {
-        public static readonly MultiReplacementTable Empty = TakeDictionary(new Dictionary<string, MultiReplacementEntry>(0));
+        public static readonly MultiReplacementTable Empty = new MultiReplacementTable(new Dictionary<string, MultiReplacementEntry>(0));
 
         public static MultiReplacementTable Create(IEnumerable<KeyValuePair<string, MultiReplacementEntry>> replacements) =>
-            replacements == null ? Empty : TakeDictionary(replacements.ToDictionary(s => s.Key, s => s.Value));
+            TakeDictionary(replacements?.ToDictionary(s => s.Key, s => s.Value));
 
         internal static MultiReplacementTable TakeDictionary(Dictionary<string, MultiReplacementEntry> replacements) =>
-            replacements == null ? Empty : new MultiReplacementTable(replacements);
+            replacements == null || replacements.Count == 0 ? Empty : new MultiReplacementTable(replacements);
 
         private MultiReplacementTable(Dictionary<string, MultiReplacementEntry> replacements) =>
             this.replacements = replacements;
@@ -47,10 +43,7 @@ namespace WeCantSpell.Hunspell
         internal bool TryConvert(string text, out string converted)
         {
 #if DEBUG
-            if (text == null)
-            {
-                throw new ArgumentNullException(nameof(text));
-            }
+            if (text == null) throw new ArgumentNullException(nameof(text));
 #endif
 
             var appliedConversion = false;

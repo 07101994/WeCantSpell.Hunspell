@@ -7,11 +7,11 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class MorphSet : ArrayWrapper<string>, IEquatable<MorphSet>
     {
-        public static readonly MorphSet Empty = TakeArray(ArrayEx<string>.Empty);
+        public static readonly MorphSet Empty = new MorphSet(ArrayEx<string>.Empty);
 
-        public static MorphSet Create(IEnumerable<string> morphs) => morphs == null ? Empty : TakeArray(morphs.ToArray());
+        public static MorphSet Create(IEnumerable<string> morphs) => TakeArray(morphs?.ToArray());
 
-        internal static MorphSet TakeArray(string[] morphs) => morphs == null ? Empty : new MorphSet(morphs);
+        internal static MorphSet TakeArray(string[] morphs) => morphs == null || morphs.Length == 0 ? Empty : new MorphSet(morphs);
 
         internal static void ApplyReverseInPlace(string[] morphs)
         {

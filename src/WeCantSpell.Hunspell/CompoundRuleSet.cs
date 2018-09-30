@@ -8,11 +8,9 @@ namespace WeCantSpell.Hunspell
     {
         public static readonly CompoundRuleSet Empty = new CompoundRuleSet(ArrayEx<CompoundRule>.Empty);
 
-        public static CompoundRuleSet Create(IEnumerable<CompoundRule> rules) =>
-            rules == null ? Empty : TakeArray(rules.ToArray());
+        public static CompoundRuleSet Create(IEnumerable<CompoundRule> rules) => TakeArray(rules?.ToArray());
 
-        internal static CompoundRuleSet TakeArray(CompoundRule[] rules) =>
-            rules == null ? Empty : new CompoundRuleSet(rules);
+        internal static CompoundRuleSet TakeArray(CompoundRule[] rules) => rules == null || rules.Length == 0 ? Empty : new CompoundRuleSet(rules);
 
         private CompoundRuleSet(CompoundRule[] rules)
             : base(rules)

@@ -6,13 +6,12 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class SingleReplacementSet : ArrayWrapper<SingleReplacement>
     {
-        public static readonly SingleReplacementSet Empty = TakeArray(ArrayEx<SingleReplacement>.Empty);
+        public static readonly SingleReplacementSet Empty = new SingleReplacementSet(ArrayEx<SingleReplacement>.Empty);
 
-        public static SingleReplacementSet Create(IEnumerable<SingleReplacement> replacements) =>
-            replacements == null ? Empty : TakeArray(replacements.ToArray());
+        public static SingleReplacementSet Create(IEnumerable<SingleReplacement> replacements) => TakeArray(replacements?.ToArray());
 
         internal static SingleReplacementSet TakeArray(SingleReplacement[] replacements) =>
-            replacements == null ? Empty : new SingleReplacementSet(replacements);
+            replacements == null || replacements.Length == 0 ? Empty : new SingleReplacementSet(replacements);
 
         private SingleReplacementSet(SingleReplacement[] replacements)
             : base(replacements)

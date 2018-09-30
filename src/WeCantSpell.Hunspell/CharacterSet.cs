@@ -8,7 +8,7 @@ namespace WeCantSpell.Hunspell
     {
         public static readonly CharacterSet Empty = new CharacterSet(ArrayEx<char>.Empty);
 
-        public static CharacterSet Create(string values) => values == null ? Empty : TakeArray(values.ToCharArray());
+        public static CharacterSet Create(string values) => TakeArray(values?.ToCharArray());
 
         public static CharacterSet Create(char value) => TakeArray(new[] { value });
 
@@ -16,9 +16,10 @@ namespace WeCantSpell.Hunspell
 
         internal static CharacterSet TakeArray(char[] values)
         {
-#if DEBUG
-            if (values == null) throw new ArgumentNullException(nameof(values));
-#endif
+            if (values == null || values.Length == 0)
+            {
+                return Empty;
+            }
 
             if (values.Length > 1)
             {
