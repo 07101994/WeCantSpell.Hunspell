@@ -41,8 +41,10 @@ namespace WeCantSpell.Hunspell
 #endif
         }
 
-        private static readonly Encoding[] PreambleEncodings;
         private const int MaxPreambleLengthInBytes = 4;
+        private const int BufferMaxSize = 4096;
+
+        private static readonly Encoding[] PreambleEncodings;
 
         public DynamicEncodingLineReader(Stream stream, Encoding initialEncoding)
         {
@@ -51,11 +53,10 @@ namespace WeCantSpell.Hunspell
         }
 
         private readonly Stream stream;
+        private readonly byte[] singleDecoderByteArray = new byte[1];
         private Decoder decoder;
         private int maxSingleCharBytes;
         private int maxSingleCharResultsCount;
-
-        private readonly int bufferMaxSize = 4096;
         private char[] charBuffer = null;
         private int charBufferUsedSize = 0;
         private byte[] buffer = null;
@@ -101,20 +102,11 @@ namespace WeCantSpell.Hunspell
             }
 
             var builder = StringBuilderPool.Get();
-            while (ReadNextChars())
-            {
-                if (ProcessCharsForLine(builder))
-                {
-                    break;
-                }
-            }
+            while (ReadNextChars() && !ProcessCharsForLine(builder)) ;
 
-            if (charBuffer == null && builder.Length == 0)
-            {
-                return null;
-            }
-
-            return ProcessLine(StringBuilderPool.GetStringAndReturn(builder));
+            return (charBuffer == null && builder.Length == 0)
+                ? null
+                : ProcessLine(StringBuilderPool.GetStringAndReturn(builder));
         }
 
         public async Task<string> ReadLineAsync()
@@ -125,13 +117,7 @@ namespace WeCantSpell.Hunspell
             }
 
             var builder = StringBuilderPool.Get();
-            while (await ReadNextCharsAsync().ConfigureAwait(false))
-            {
-                if (ProcessCharsForLine(builder))
-                {
-                    break;
-                }
-            }
+            while ((await ReadNextCharsAsync().ConfigureAwait(false)) && !ProcessCharsForLine(builder)) ;
 
             if (charBuffer == null && builder.Length == 0)
             {
@@ -144,30 +130,15 @@ namespace WeCantSpell.Hunspell
 
         private bool ProcessCharsForLine(StringBuilder builder)
         {
-            var firstNonLineBreakCharacter = -1;
-            var lastNonLineBreakCharacter = -1;
+            int firstNonLineBreakCharacter = 0;
 
-            for (var i = 0; i < charBufferUsedSize; i++)
-            {
-                var charValue = charBuffer[i];
-                if (charValue != '\r' && charValue != '\n')
-                {
-                    firstNonLineBreakCharacter = i;
-                    break;
-                }
-            }
+            for (; firstNonLineBreakCharacter < charBufferUsedSize && StringEx.IsLineBreakChar(charBuffer[firstNonLineBreakCharacter]); firstNonLineBreakCharacter++) ;
 
-            for (var i = charBufferUsedSize - 1; i >= 0; i--)
-            {
-                var charValue = charBuffer[i];
-                if (charValue != '\r' && charValue != '\n')
-                {
-                    lastNonLineBreakCharacter = i;
-                    break;
-                }
-            }
+            int lastNonLineBreakCharacter = charBufferUsedSize - 1;
 
-            if (firstNonLineBreakCharacter == -1 || lastNonLineBreakCharacter == -1)
+            for (; lastNonLineBreakCharacter >= 0 && StringEx.IsLineBreakChar(charBuffer[lastNonLineBreakCharacter]); lastNonLineBreakCharacter--) ;
+
+            if (firstNonLineBreakCharacter == charBufferUsedSize || lastNonLineBreakCharacter == -1)
             {
                 return true;
             }
@@ -186,7 +157,7 @@ namespace WeCantSpell.Hunspell
             }
 
             var bytesConsumed = 0;
-            while (bytesConsumed < maxSingleCharBytes)
+            do
             {
                 var nextByte = ReadByte();
                 if (nextByte < 0)
@@ -196,13 +167,14 @@ namespace WeCantSpell.Hunspell
 
                 bytesConsumed++;
 
-                var charsProduced = TryDecode((byte)nextByte, charBuffer);
+                Decode((byte)nextByte, charBuffer, out var charsProduced);
                 if (charsProduced > 0)
                 {
                     charBufferUsedSize = charsProduced;
                     return true;
                 }
             }
+            while (bytesConsumed < maxSingleCharBytes);
 
             charBuffer = null;
             charBufferUsedSize = 0;
@@ -217,7 +189,7 @@ namespace WeCantSpell.Hunspell
             }
 
             var bytesConsumed = 0;
-            while (bytesConsumed < maxSingleCharBytes)
+            do
             {
                 var nextByte = await ReadByteAsync().ConfigureAwait(false);
                 if (nextByte < 0)
@@ -227,22 +199,21 @@ namespace WeCantSpell.Hunspell
 
                 bytesConsumed++;
 
-                var charsProduced = TryDecode((byte)nextByte, charBuffer);
+                Decode((byte)nextByte, charBuffer, out var charsProduced);
                 if (charsProduced > 0)
                 {
                     charBufferUsedSize = charsProduced;
                     return true;
                 }
             }
+            while (bytesConsumed < maxSingleCharBytes);
 
             charBuffer = null;
             charBufferUsedSize = 0;
             return false;
         }
 
-        private readonly byte[] singleDecoderByteArray = new byte[1];
-
-        private int TryDecode(byte byteValue, char[] chars)
+        private void Decode(byte byteValue, char[] chars, out int charsProduced)
         {
             singleDecoderByteArray[0] = byteValue;
             decoder.Convert(
@@ -253,11 +224,9 @@ namespace WeCantSpell.Hunspell
                     0,
                     chars.Length,
                     false,
-                    out int bytesConverted,
-                    out int charsProduced,
-                    out bool completed);
-
-            return charsProduced;
+                    out var _,
+                    out charsProduced,
+                    out var _);
         }
 
         private bool ReadPreamble() =>
@@ -300,15 +269,7 @@ namespace WeCantSpell.Hunspell
             return true;
         }
 
-        private int ReadByte()
-        {
-            if (!PrepareBuffer())
-            {
-                return -1;
-            }
-
-            return HandleReadByteIncrement();
-        }
+        private int ReadByte() => PrepareBuffer() ? HandleReadByteIncrement() : -1;
 
         private byte[] ReadBytes(int count)
         {
@@ -316,7 +277,7 @@ namespace WeCantSpell.Hunspell
             var resultOffset = 0;
             var bytesNeeded = result.Length;
 
-            while (bytesNeeded > 0)
+            do
             {
                 if (!PrepareBuffer())
                 {
@@ -325,20 +286,14 @@ namespace WeCantSpell.Hunspell
 
                 HandleReadBytesIncrement(result, ref bytesNeeded, ref resultOffset);
             }
+            while (bytesNeeded > 0);
 
             return result;
         }
 
 
-        private async Task<int> ReadByteAsync()
-        {
-            if (!await PrepareBufferAsync().ConfigureAwait(false))
-            {
-                return -1;
-            }
-
-            return HandleReadByteIncrement();
-        }
+        private async Task<int> ReadByteAsync() =>
+            (await PrepareBufferAsync().ConfigureAwait(false)) ? HandleReadByteIncrement() : -1;
 
         private async Task<byte[]> ReadBytesAsync(int count)
         {
@@ -346,7 +301,7 @@ namespace WeCantSpell.Hunspell
             var resultOffset = 0;
             var bytesNeeded = result.Length;
 
-            while (bytesNeeded > 0)
+            do
             {
                 if (!await PrepareBufferAsync().ConfigureAwait(false))
                 {
@@ -355,6 +310,7 @@ namespace WeCantSpell.Hunspell
 
                 HandleReadBytesIncrement(result, ref bytesNeeded, ref resultOffset);
             }
+            while (bytesNeeded > 0);
 
             return result;
         }
@@ -362,13 +318,11 @@ namespace WeCantSpell.Hunspell
         private int HandleReadByteIncrement()
         {
             var result = buffer[bufferIndex];
-            if (1 >= byteBufferUsedSize - bufferIndex)
+
+            bufferIndex++;
+            if (bufferIndex >= byteBufferUsedSize)
             {
                 bufferIndex = byteBufferUsedSize;
-            }
-            else
-            {
-                bufferIndex++;
             }
 
             return result;
@@ -397,7 +351,7 @@ namespace WeCantSpell.Hunspell
         {
             if (buffer == null)
             {
-                buffer = new byte[bufferMaxSize];
+                buffer = new byte[BufferMaxSize];
             }
             else if (bufferIndex < byteBufferUsedSize)
             {
@@ -413,7 +367,7 @@ namespace WeCantSpell.Hunspell
         {
             if (buffer == null)
             {
-                buffer = new byte[bufferMaxSize];
+                buffer = new byte[BufferMaxSize];
             }
             else if (bufferIndex < byteBufferUsedSize)
             {
@@ -446,44 +400,31 @@ namespace WeCantSpell.Hunspell
             bufferIndex = revertedIndex;
         }
 
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        private string ProcessLine(string rawLine)
-        {
-            HandleLineForEncoding(rawLine);
-            return rawLine;
-        }
-
-        private void HandleLineForEncoding(string line)
+        private string ProcessLine(string line)
         {
             // read through the initial whitespace
             var startIndex = 0;
             for (; startIndex < line.Length && line[startIndex].IsTabOrSpace(); startIndex++) ;
 
-            if (startIndex == line.Length)
+            if (startIndex != line.Length
+                && line.Length - startIndex >= 5
+                && line[startIndex] == 'S'
+                && line[startIndex + 1] == 'E'
+                && line[startIndex + 2] == 'T')
             {
-                return; // empty or whitespace
+                startIndex += 3;
+
+                // read the whitespace to find the encoding name
+                for (; startIndex < line.Length && line[startIndex].IsTabOrSpace(); startIndex++) ;
+
+                // read through the final trailing whitespace if any
+                var endIndex = line.Length - 1;
+                for (; endIndex > startIndex && line[endIndex].IsTabOrSpace(); endIndex--) ;
+
+                ChangeEncoding(line.AsSpan(startIndex, endIndex - startIndex + 1));
             }
 
-            if (line.Length - startIndex < 5
-                || line[startIndex] != 'S'
-                || line[++startIndex] != 'E'
-                || line[++startIndex] != 'T')
-            {
-                return; // not a set command
-            }
-
-            startIndex++;
-
-            // read the whitespace to find the encoding name
-            for (; startIndex < line.Length && line[startIndex].IsTabOrSpace(); startIndex++) ;
-            
-            // read through the final trailing whitespace if any
-            var endIndex = line.Length - 1;
-            for (; endIndex > startIndex && line[endIndex].IsTabOrSpace(); endIndex--) ;
-
-            ChangeEncoding(line.AsSpan(startIndex, endIndex - startIndex + 1));
+            return line;
         }
 
         private void ChangeEncoding(ReadOnlySpan<char> encodingName)
@@ -501,8 +442,8 @@ namespace WeCantSpell.Hunspell
 
             decoder = newEncoding.GetDecoder();
             CurrentEncoding = newEncoding;
-            maxSingleCharBytes = CurrentEncoding.GetMaxByteCount(1);
-            maxSingleCharResultsCount = CurrentEncoding.GetMaxCharCount(maxSingleCharBytes);
+            maxSingleCharBytes = Math.Max(CurrentEncoding.GetMaxByteCount(1), 1);
+            maxSingleCharResultsCount = Math.Max(CurrentEncoding.GetMaxCharCount(maxSingleCharBytes), 1);
         }
 
         public void Dispose() =>
