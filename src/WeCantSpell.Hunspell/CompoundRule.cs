@@ -6,7 +6,7 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class CompoundRule : ArrayWrapper<FlagValue>
     {
-        public static readonly CompoundRule Empty = TakeArray(ArrayEx<FlagValue>.Empty);
+        public static readonly CompoundRule Empty = new CompoundRule(ArrayEx<FlagValue>.Empty);
 
         public static CompoundRule Create(List<FlagValue> values) => values == null ? Empty : TakeArray(values.ToArray());
 

@@ -6,7 +6,7 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class CompoundRuleSet : ArrayWrapper<CompoundRule>
     {
-        public static readonly CompoundRuleSet Empty = TakeArray(ArrayEx<CompoundRule>.Empty);
+        public static readonly CompoundRuleSet Empty = new CompoundRuleSet(ArrayEx<CompoundRule>.Empty);
 
         public static CompoundRuleSet Create(IEnumerable<CompoundRule> rules) =>
             rules == null ? Empty : TakeArray(rules.ToArray());
