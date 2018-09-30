@@ -148,23 +148,23 @@ namespace WeCantSpell.Hunspell.Infrastructure
 
         public static string ToStringWithout(this ReadOnlySpan<char> @this, char value)
         {
-            var removeIndex = @this.IndexOf(value);
-            if (removeIndex < 0)
+            var searchIndex = @this.IndexOf(value);
+            if (searchIndex < 0)
             {
                 return @this.ToString();
             }
 
-            if (removeIndex == @this.Length - 1)
+            if (searchIndex == @this.Length - 1)
             {
-                return @this.Slice(0, removeIndex).ToString();
+                return @this.Slice(0, searchIndex).ToString();
             }
 
             var builder = StringBuilderPool.Get(@this.Length - 1);
-            builder.Append(@this.Slice(0, removeIndex));
+            builder.Append(@this.Slice(0, searchIndex));
 
-            for (var i = removeIndex; i < @this.Length; i++)
+            for (searchIndex++; searchIndex < @this.Length; searchIndex++)
             {
-                ref readonly var c = ref @this[i];
+                ref readonly var c = ref @this[searchIndex];
                 if (value != c)
                 {
                     builder.Append(c);
