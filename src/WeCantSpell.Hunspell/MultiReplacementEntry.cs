@@ -91,43 +91,39 @@ namespace WeCantSpell.Hunspell
                 return false;
             }
 
-            var pattern1Builder = StringBuilderPool.Get(pattern1);
+            var trailingUnderscore = pattern1.Length > 1 && pattern1.EndsWith('_');
             ReplacementValueType type;
-            var trailingUnderscore = pattern1Builder.EndsWith('_');
-            if (pattern1Builder.StartsWith('_'))
+            if (pattern1.StartsWith('_'))
             {
                 if (trailingUnderscore)
                 {
+                    pattern1 = pattern1.Substring(1, pattern1.Length - 2).Replace('_', ' ');
                     type = ReplacementValueType.Isol;
-                    pattern1Builder.Remove(pattern1Builder.Length - 1, 1);
                 }
                 else
                 {
+                    pattern1 = pattern1.Substring(1).Replace('_', ' ');
                     type = ReplacementValueType.Ini;
                 }
-
-                pattern1Builder.Remove(0, 1);
             }
             else
             {
                 if (trailingUnderscore)
                 {
+                    pattern1 = pattern1.Substring(0, pattern1.Length - 1).Replace('_', ' ');
                     type = ReplacementValueType.Fin;
-                    pattern1Builder.Remove(pattern1Builder.Length - 1, 1);
                 }
                 else
                 {
+                    pattern1 = pattern1.Replace('_', ' ');
                     type = ReplacementValueType.Med;
                 }
             }
 
-            pattern1Builder.Replace('_', ' ');
-
-            pattern1 = StringBuilderPool.GetStringAndReturn(pattern1Builder);
             pattern2 = pattern2.Replace('_', ' ');
 
             // find existing entry
-            if (list .TryGetValue(pattern1, out MultiReplacementEntry entry))
+            if (list.TryGetValue(pattern1, out MultiReplacementEntry entry))
             {
                 entry.Set(type, pattern2);
             }
@@ -135,9 +131,8 @@ namespace WeCantSpell.Hunspell
             {
                 // make a new entry if none exists
                 entry = new MultiReplacementEntry(pattern1, type, pattern2);
+                list.Add(pattern1, entry);
             }
-
-            list[pattern1] = entry;
 
             return true;
         }
