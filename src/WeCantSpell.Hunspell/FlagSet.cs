@@ -187,10 +187,10 @@ namespace WeCantSpell.Hunspell
             }
             if (items.Length == 1)
             {
-                return value.Equals(items[0]);
+                return items[0].Equals(value);
             }
 
-            return (unchecked(value & mask) != default)
+            return (unchecked(value & mask) == value)
                 && value >= items[0]
                 && value <= items[items.Length - 1]
                 && Array.BinarySearch(items, value) >= 0;

@@ -44,10 +44,22 @@ namespace WeCantSpell.Hunspell
 
         private readonly char mask;
 
-        public bool Contains(char value) =>
-            unchecked((value & mask) != default)
-            &&
-            Array.BinarySearch(items, value) >= 0;
+        public bool Contains(char value)
+        {
+            if (IsEmpty)
+            {
+                return false;
+            }
+            if (items.Length == 1)
+            {
+                return items[0] == value;
+            }
+
+            return unchecked((value & mask) == value)
+                && value >= items[0]
+                && value <= items[items.Length - 1]
+                && Array.BinarySearch(items, value) >= 0;
+        }
 
         public string GetCharactersAsString() => new string(items);
 
