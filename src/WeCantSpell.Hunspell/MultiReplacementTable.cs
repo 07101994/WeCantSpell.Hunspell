@@ -6,25 +6,56 @@ using WeCantSpell.Hunspell.Infrastructure;
 
 namespace WeCantSpell.Hunspell
 {
-    public class MultiReplacementTable :
-#if NO_READONLYCOLLECTIONS
-        IEnumerable<KeyValuePair<string, MultiReplacementEntry>>
-#else
-        IReadOnlyDictionary<string, MultiReplacementEntry>
-#endif
+    public class MultiReplacementTable : IReadOnlyDictionary<string, MultiReplacementEntry>
     {
         public static readonly MultiReplacementTable Empty = new MultiReplacementTable(new Dictionary<string, MultiReplacementEntry>(0));
 
         public static MultiReplacementTable Create(IEnumerable<KeyValuePair<string, MultiReplacementEntry>> replacements) =>
-            TakeDictionary(replacements?.ToDictionary(s => s.Key, s => s.Value));
+            TakeDictionary(replacements?.ToDictionary(s => s.Key ?? throw new ArgumentException(nameof(replacements)), s => s.Value));
 
         internal static MultiReplacementTable TakeDictionary(Dictionary<string, MultiReplacementEntry> replacements) =>
             replacements == null || replacements.Count == 0 ? Empty : new MultiReplacementTable(replacements);
 
-        private MultiReplacementTable(Dictionary<string, MultiReplacementEntry> replacements) =>
+        private MultiReplacementTable(Dictionary<string, MultiReplacementEntry> replacements)
+        {
             this.replacements = replacements;
 
-        private Dictionary<string, MultiReplacementEntry> replacements;
+
+            using (var keyEnumerator = replacements.Keys.GetEnumerator())
+            {
+                int keyLength;
+                if (!keyEnumerator.MoveNext())
+                {
+                    minKeyLength = 0;
+                    maxKeyLength = 0;
+                }
+                else
+                {
+                    keyLength = keyEnumerator.Current.Length;
+                    minKeyLength = keyLength;
+                    maxKeyLength = keyLength;
+                }
+
+                while (keyEnumerator.MoveNext())
+                {
+                    keyLength = keyEnumerator.Current.Length;
+                    if (keyLength < minKeyLength)
+                    {
+                        minKeyLength = keyLength;
+                    }
+                    else if (maxKeyLength < keyLength)
+                    {
+                        maxKeyLength = keyLength;
+                    }
+                }
+            }
+        }
+
+        private readonly Dictionary<string, MultiReplacementEntry> replacements;
+
+        private readonly int minKeyLength;
+
+        private readonly int maxKeyLength;
 
         public MultiReplacementEntry this[string key] => replacements[key];
 
@@ -42,20 +73,10 @@ namespace WeCantSpell.Hunspell
 
         internal bool TryConvert(string text, out string converted)
         {
-#if DEBUG
-            if (text == null) throw new ArgumentNullException(nameof(text));
-#endif
-
-            var appliedConversion = false;
-
-            if (text.Length == 0)
+            if (!string.IsNullOrEmpty(text))
             {
-                converted = text;
-            }
-            else
-            {
+                var appliedConversion = false;
                 var convertedBuilder = StringBuilderPool.Get(text.Length);
-
                 for (var i = 0; i < text.Length; i++)
                 {
                     var replacementEntry = FindLargestMatchingConversion(text.AsSpan(i));
@@ -74,10 +95,17 @@ namespace WeCantSpell.Hunspell
                     convertedBuilder.Append(text[i]);
                 }
 
-                converted = StringBuilderPool.GetStringAndReturn(convertedBuilder);
+                if (appliedConversion)
+                {
+                    converted = StringBuilderPool.GetStringAndReturn(convertedBuilder);
+                    return true;
+                }
+
+                StringBuilderPool.Return(convertedBuilder);
             }
 
-            return appliedConversion;
+            converted = text;
+            return false;
         }
 
         /// <summary>
@@ -88,9 +116,10 @@ namespace WeCantSpell.Hunspell
         /// <seealso cref="MultiReplacementEntry"/>
         internal MultiReplacementEntry FindLargestMatchingConversion(ReadOnlySpan<char> text)
         {
-            for (var searchLength = text.Length; searchLength > 0; searchLength--)
+            var minIteration = Math.Max(minKeyLength, 1);
+            for (var searchLength = Math.Min(maxKeyLength, text.Length); searchLength >= minIteration; searchLength--)
             {
-                if (replacements.TryGetValue(text.Slice(0, searchLength).ToString(), out MultiReplacementEntry entry))
+                if (replacements.TryGetValue(text.Slice(0, searchLength).ToString(), out var entry))
                 {
                     return entry;
                 }

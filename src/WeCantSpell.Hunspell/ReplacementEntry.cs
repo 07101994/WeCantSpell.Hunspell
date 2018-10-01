@@ -23,23 +23,25 @@
 
         public abstract string this[ReplacementValueType type] { get; }
 
-        internal string ExtractReplacementText(int remainingCharactersToReplace, bool atStart)
+        internal string ExtractReplacementText(int remainingCharactersToReplace, bool atStart) =>
+            this[atStart
+                ? FindReplacementType_AtStart(remainingCharactersToReplace)
+                : FindReplacementType_Normal(remainingCharactersToReplace)];
+
+        private ReplacementValueType FindReplacementType_AtStart(int remainingCharactersToReplace)
         {
-            var type = remainingCharactersToReplace == Pattern.Length
-                ? ReplacementValueType.Fin
-                : ReplacementValueType.Med;
+            var type = (remainingCharactersToReplace == Pattern.Length)
+                    ? (ReplacementValueType.Fin | ReplacementValueType.Ini)
+                    : (ReplacementValueType.Med | ReplacementValueType.Ini);
 
-            if (atStart)
-            {
-                type |= ReplacementValueType.Ini;
-            }
+            for (; type != ReplacementValueType.Med && string.IsNullOrEmpty(this[type]); type--) ;
 
-            while (type != ReplacementValueType.Med && string.IsNullOrEmpty(this[type]))
-            {
-                type = (type == ReplacementValueType.Fin && !atStart) ? ReplacementValueType.Med : type - 1;
-            }
-
-            return this[type];
+            return type;
         }
+
+        private ReplacementValueType FindReplacementType_Normal(int remainingCharactersToReplace) =>
+            (remainingCharactersToReplace == Pattern.Length)
+            ? (string.IsNullOrEmpty(this[ReplacementValueType.Fin]) ? ReplacementValueType.Med : ReplacementValueType.Fin)
+            : ReplacementValueType.Med;
     }
 }
