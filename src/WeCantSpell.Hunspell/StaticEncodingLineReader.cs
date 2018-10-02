@@ -21,6 +21,7 @@ namespace WeCantSpell.Hunspell
         }
 
         private readonly Stream stream;
+
         private readonly StreamReader reader;
 
         public Encoding CurrentEncoding => reader.CurrentEncoding;

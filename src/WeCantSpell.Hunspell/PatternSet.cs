@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using WeCantSpell.Hunspell.Infrastructure;
 
-#if !NO_INLINE
-using System.Runtime.CompilerServices;
-#endif
-
 namespace WeCantSpell.Hunspell
 {
     public class PatternSet : ArrayWrapper<PatternEntry>
@@ -31,6 +27,7 @@ namespace WeCantSpell.Hunspell
 #if DEBUG
             if (r1 == null) throw new ArgumentNullException(nameof(r1));
             if (r2 == null) throw new ArgumentNullException(nameof(r2));
+            if (pos >= word.Length) throw new ArgumentOutOfRangeException(nameof(pos));
 #endif
 
             var wordAfterPos = word.AsSpan(pos);
@@ -51,28 +48,25 @@ namespace WeCantSpell.Hunspell
                         ||
                         r2.ContainsFlag(patternEntry.Condition2)
                     )
-                    &&
-                    // zero length pattern => only TESTAFF
-                    // zero pattern (0/flag) => unmodified stem (zero affixes allowed)
-                    (
-                        string.IsNullOrEmpty(patternEntry.Pattern)
-                        ||
-                        PatternWordCheck(word, pos, patternEntry.Pattern.StartsWith('0') ? r1.Word : patternEntry.Pattern)
-                    )
                 )
                 {
-                    return true;
+                    // zero length pattern => only TESTAFF
+                    // zero pattern (0/flag) => unmodified stem (zero affixes allowed)
+
+                    if (patternEntry.Pattern.Length == 0)
+                    {
+                        return true;
+                    }
+
+                    var other = patternEntry.Pattern[0] == '0' ? r1.Word : patternEntry.Pattern;
+                    if (other.Length <= pos && word.AsSpan(pos - other.Length).StartsWith(other.AsSpan()))
+                    {
+                        return true;
+                    }
                 }
             }
 
             return false;
         }
-
-#if !NO_INLINE
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        private static bool PatternWordCheck(string word, int pos, string other) =>
-            other.Length <= pos
-            && word.AsSpan(pos - other.Length).StartsWith(other.AsSpan());
     }
 }

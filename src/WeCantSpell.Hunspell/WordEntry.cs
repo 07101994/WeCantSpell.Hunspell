@@ -13,8 +13,12 @@ namespace WeCantSpell.Hunspell
 
         public WordEntry(string word, WordEntryDetail detail)
         {
-            Word = word ?? string.Empty;
-            Detail = detail ?? WordEntryDetail.Default;
+#if DEBUG
+            if (word == null) throw new ArgumentNullException(nameof(word));
+            if (detail == null) throw new ArgumentNullException(nameof(detail));
+#endif
+            Word = word;
+            Detail = detail;
         }
 
         public string Word { get; }
@@ -23,16 +27,10 @@ namespace WeCantSpell.Hunspell
 
         public bool ContainsFlag(FlagValue flag) => Detail.ContainsFlag(flag);
 
-        public bool Equals(WordEntry other)
-        {
-            if (ReferenceEquals(other, null))
-            {
-                return false;
-            }
-
-            return string.Equals(other.Word, Word, StringComparison.Ordinal)
-                && other.Detail.Equals(Detail);
-        }
+        public bool Equals(WordEntry other) =>
+            !(other is null)
+            && string.Equals(other.Word, Word, StringComparison.Ordinal)
+            && other.Detail.Equals(Detail);
 
         public override bool Equals(object obj) => Equals(obj as WordEntry);
 

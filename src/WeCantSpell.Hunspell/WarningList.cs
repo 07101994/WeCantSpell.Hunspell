@@ -6,10 +6,7 @@ namespace WeCantSpell.Hunspell
 {
     public sealed class WarningList : ArrayWrapper<string>
     {
-        public static WarningList Create(IEnumerable<string> warnings) => TakeArray(warnings?.ToArray());
-
-        internal static WarningList TakeArray(string[] warnings) =>
-            new WarningList(warnings ?? ArrayEx<string>.Empty);
+        public static WarningList Create(IEnumerable<string> warnings) => new WarningList(warnings?.ToArray() ?? ArrayEx<string>.Empty);
 
         private WarningList(string[] warnings)
             : base(warnings)
