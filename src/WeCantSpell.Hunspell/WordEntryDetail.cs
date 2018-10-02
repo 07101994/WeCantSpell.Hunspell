@@ -55,23 +55,23 @@ namespace WeCantSpell.Hunspell
 #endif
         public bool ContainsAnyFlags(FlagValue a, FlagValue b, FlagValue c, FlagValue d) => Flags.ContainsAny(a, b, c, d);
 
-        public bool Equals(WordEntryDetail other)
+        public bool Equals(WordEntryDetail other) =>
+            !(other is null)
+            && other.Options == Options
+            && other.Flags.Equals(Flags)
+            && other.Morphs.Equals(Morphs);
+
+        public override bool Equals(object obj) => Equals(obj as WordEntryDetail);
+
+        public override int GetHashCode()
         {
-            if (ReferenceEquals(other, null))
+            unchecked
             {
-                return false;
+                var hash = (17 * 31) + Flags.GetHashCode();
+                hash = (hash * 31) + Morphs.GetHashCode();
+                return (hash * 31) + Options.GetHashCode();
             }
-
-            return other.Options == Options
-                && other.Flags.Equals(Flags)
-                && other.Morphs.Equals(Morphs);
         }
-
-        public override bool Equals(object obj) =>
-            obj is WordEntryDetail d && Equals(d);
-
-        public override int GetHashCode() =>
-            unchecked(Flags.GetHashCode() ^ Morphs.GetHashCode() ^ Options.GetHashCode());
 
 #if !NO_INLINE
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

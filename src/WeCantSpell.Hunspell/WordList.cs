@@ -55,11 +55,9 @@ namespace WeCantSpell.Hunspell
                 wordListBuilder.InitializeEntriesByRoot(-1);
             }
 
-            var entryDetail = WordEntryDetail.Default;
-
             foreach (var word in words)
             {
-                wordListBuilder.Add(word, entryDetail);
+                wordListBuilder.Add(word, WordEntryDetail.Default);
             }
 
             return wordListBuilder.MoveToImmutable();
