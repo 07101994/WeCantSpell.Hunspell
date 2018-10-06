@@ -77,10 +77,10 @@ namespace WeCantSpell.Hunspell.Infrastructure
             return @this.StartsWith(value.AsSpan(), StringComparison.OrdinalIgnoreCase);
         }
 
-        public static bool StartsWith(this ReadOnlySpan<char> @this, char value) =>
+        public static bool StartsWith(this in ReadOnlySpan<char> @this, char value) =>
             !@this.IsEmpty && @this[0] == value;
 
-        public static bool EndsWith(this ReadOnlySpan<char> @this, char value) =>
+        public static bool EndsWith(this in ReadOnlySpan<char> @this, char value) =>
             !@this.IsEmpty && @this[@this.Length - 1] == value;
 
         public static bool Split(this ReadOnlySpan<char> @this, char value0, SplitPartHandler partHandler)

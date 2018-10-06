@@ -8,15 +8,17 @@ namespace WeCantSpell.Hunspell.Infrastructure
 {
     ref struct SimulatedCString
     {
-        public SimulatedCString(string text)
+        public SimulatedCString(ReadOnlySpan<char> text)
         {
-            buffer = text.ToCharArray();
-            cachedSpan = buffer.AsSpan();
+            buffer = text.ToArray();
+            bufferSpan = buffer.AsSpan();
+            cachedSpan = bufferSpan;
             cachedString = null;
             cacheRequiresRefresh = true;
         }
 
         private char[] buffer;
+        private Span<char> bufferSpan;
         private string cachedString;
         private Span<char> cachedSpan;
         private bool cacheRequiresRefresh;
@@ -47,6 +49,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (buffer.Length < neededLength)
             {
                 Array.Resize(ref buffer, neededLength);
+                bufferSpan = buffer.AsSpan();
             }
 
             text.CopyTo(0, buffer, destinationIndex, text.Length);
@@ -60,24 +63,24 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (buffer.Length < neededLength)
             {
                 Array.Resize(ref buffer, neededLength);
+                bufferSpan = buffer.AsSpan();
             }
 
-            text.CopyTo(buffer.AsSpan(destinationIndex));
+            text.CopyTo(bufferSpan.Slice(destinationIndex));
         }
 
-        public void Assign(string text)
+        public void Assign(ReadOnlySpan<char> text)
         {
 #if DEBUG
-            if (text == null) throw new ArgumentNullException(nameof(text));
             if (text.Length > buffer.Length) throw new ArgumentOutOfRangeException(nameof(text));
 #endif
             ResetCache();
 
-            text.CopyTo(0, buffer, 0, text.Length);
+            text.CopyTo(bufferSpan);
 
-            if (text.Length < buffer.Length)
+            if (text.Length < bufferSpan.Length)
             {
-                Array.Clear(buffer, text.Length, buffer.Length - text.Length);
+                bufferSpan.Slice(text.Length).Clear();
             }
         }
 
@@ -85,6 +88,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
         {
             ResetCache();
             buffer = null;
+            bufferSpan = Span<char>.Empty;
         }
 
         public override string ToString() =>
@@ -95,7 +99,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
             if (cacheRequiresRefresh)
             {
                 cacheRequiresRefresh = false;
-                cachedSpan = buffer.AsSpan(0, FindTerminatedLength());
+                cachedSpan = bufferSpan.Slice(0, FindTerminatedLength());
             }
 
             return cachedSpan;

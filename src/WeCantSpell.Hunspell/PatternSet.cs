@@ -22,7 +22,7 @@ namespace WeCantSpell.Hunspell
         /// <summary>
         /// Forbid compoundings when there are special patterns at word bound.
         /// </summary>
-        internal bool Check(string word, int pos, WordEntry r1, WordEntry r2, bool affixed)
+        internal bool Check(ReadOnlySpan<char> word, int pos, WordEntry r1, WordEntry r2, bool affixed)
         {
 #if DEBUG
             if (r1 == null) throw new ArgumentNullException(nameof(r1));
@@ -30,7 +30,7 @@ namespace WeCantSpell.Hunspell
             if (pos >= word.Length) throw new ArgumentOutOfRangeException(nameof(pos));
 #endif
 
-            var wordAfterPos = word.AsSpan(pos);
+            var wordAfterPos = word.Slice(pos);
 
             foreach (var patternEntry in items)
             {
@@ -59,7 +59,7 @@ namespace WeCantSpell.Hunspell
                     }
 
                     var other = patternEntry.Pattern[0] == '0' ? r1.Word : patternEntry.Pattern;
-                    if (other.Length <= pos && word.AsSpan(pos - other.Length).StartsWith(other.AsSpan()))
+                    if (other.Length <= pos && word.Slice(pos - other.Length).StartsWith(other.AsSpan()))
                     {
                         return true;
                     }
