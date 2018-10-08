@@ -2321,18 +2321,18 @@ namespace WeCantSpell.Hunspell
                 return nscore;
             }
 
-            private static int NGramWeightedSearch(int n, ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static int NGramWeightedSearch(int n, in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t)
             {
                 int nscore = NGramWeightedSearch_Iteration1(s1, t);
                 for (var nGramLength = 2; nGramLength <= n; nGramLength++)
                 {
-                    nscore += NGramWeightedSearch_IterationN(nGramLength, s1, t);
+                    NGramWeightedSearch_IterationN(nGramLength, s1, t, ref nscore);
                 }
 
                 return nscore;
             }
 
-            private static int NGramWeightedSearch_Iteration1(ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static int NGramWeightedSearch_Iteration1(in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t)
             {
                 var ns = 0;
                 var maxSearchIndex = s1.Length - 1;
@@ -2358,36 +2358,39 @@ namespace WeCantSpell.Hunspell
                 return ns;
             }
 
-            private static int NGramWeightedSearch_IterationN(int nGramLength, ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static void NGramWeightedSearch_IterationN(int nGramLength, in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t, ref int nscore)
             {
-                var ns = 0;
                 var maxSearchIndex = s1.Length - nGramLength;
                 for (var i = 0; i <= maxSearchIndex; ++i)
                 {
                     if (t.Contains(s1.Slice(i, nGramLength)))
                     {
-                        ++ns;
+                        nscore++;
                     }
                     else
                     {
                         if (i == 0 || i == maxSearchIndex)
                         {
-                            ns -= 2;
+                            nscore -= 2;
                         }
                         else
                         {
-                            --ns;
+                            nscore--;
                         }
                     }
                 }
-
-                return ns;
             }
 
-            private static int NGramNonWeightedSearch(int n, ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static int NGramNonWeightedSearch(int n, in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t)
             {
                 int ns = NGramNonWeightedSearch_Iteration1(s1, t);
                 int nscore = ns;
+
+                if (n > t.Length)
+                {
+                    n = t.Length;
+                }
+
                 for (var nGramLength = 2; nGramLength <= n && ns >= 2; ++nGramLength)
                 {
                     ns = NGramNonWeightedSearch_IterationN(nGramLength, s1, t);
@@ -2397,7 +2400,7 @@ namespace WeCantSpell.Hunspell
                 return nscore;
             }
 
-            private static int NGramNonWeightedSearch_Iteration1(ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static int NGramNonWeightedSearch_Iteration1(in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t)
             {
                 var ns = 0;
                 for (var i = 0; i < s1.Length; ++i)
@@ -2410,7 +2413,7 @@ namespace WeCantSpell.Hunspell
                 return ns;
             }
 
-            private static int NGramNonWeightedSearch_IterationN(int nGramLength, ReadOnlySpan<char> s1, ReadOnlySpan<char> t)
+            private static int NGramNonWeightedSearch_IterationN(int nGramLength, in ReadOnlySpan<char> s1, in ReadOnlySpan<char> t)
             {
                 var ns = 0;
                 var maxIndex = s1.Length - nGramLength;
@@ -2421,6 +2424,7 @@ namespace WeCantSpell.Hunspell
                         ++ns;
                     }
                 }
+
                 return ns;
             }
 
