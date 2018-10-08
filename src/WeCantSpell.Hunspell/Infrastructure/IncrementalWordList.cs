@@ -21,9 +21,9 @@ namespace WeCantSpell.Hunspell.Infrastructure
             WNum = wNum;
         }
 
-        public List<WordEntryDetail> Words { get; }
+        public readonly List<WordEntryDetail> Words;
 
-        public int WNum { get; }
+        public readonly int WNum;
 
         public void SetCurrent(WordEntryDetail value)
         {
@@ -45,7 +45,7 @@ namespace WeCantSpell.Hunspell.Infrastructure
         {
             if (WNum < Words.Count)
             {
-                Words[WNum] = null;
+                Words[WNum] = default;
             }
         }
 

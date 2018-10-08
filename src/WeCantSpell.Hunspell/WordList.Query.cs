@@ -98,6 +98,15 @@ namespace WeCantSpell.Hunspell
 #if !NO_INLINE
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
+            public void ClearAffixes()
+            {
+                Prefix = default;
+                Suffix = default;
+            }
+
+#if !NO_INLINE
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
             private void ClearSuffixAndFlag()
             {
                 ClearSuffix();
@@ -422,15 +431,18 @@ namespace WeCantSpell.Hunspell
             private WordEntry HomonymWordSearch(ReadOnlySpan<char> homonymWord, IncrementalWordList words, FlagValue condition2, bool scpdIsZero)
             {
                 var homonymWordString = homonymWord.ToString();
-                return HomonymWordSearchDetail(homonymWordString, words, condition2, scpdIsZero)?.ToEntry(homonymWordString);
+                return HomonymWordSearchDetail(LookupDetails(homonymWordString), words, condition2, scpdIsZero)?.ToEntry(homonymWordString);
             }
 
-            private WordEntryDetail HomonymWordSearchDetail(string homonymWord, IncrementalWordList words, FlagValue condition2, bool scpdIsZero)
+            private WordEntryDetail HomonymWordSearchDetail(WordEntryDetail[] homonymCandidates, IncrementalWordList words, FlagValue condition2, bool scpdIsZero)
             {
-                foreach (var homonymCandidate in LookupDetails(homonymWord))
+                var canSkipCondition2Check = scpdIsZero || !condition2.HasValue;
+                foreach (var homonymCandidate in homonymCandidates)
                 {
                     if (
                         !homonymCandidate.ContainsFlag(Affix.NeedAffix)
+                        &&
+                        (canSkipCondition2Check || homonymCandidate.ContainsFlag(condition2))
                         &&
                         (
                             words == null
@@ -443,12 +455,6 @@ namespace WeCantSpell.Hunspell
                                 Affix.CompoundRules.HasItems
                                 && DefCompoundCheck(words.CreateIncremented(), homonymCandidate, true)
                             )
-                        )
-                        &&
-                        (
-                            scpdIsZero
-                            || !condition2.HasValue
-                            || homonymCandidate.ContainsFlag(condition2)
                         )
                     )
                     {
@@ -542,9 +548,10 @@ namespace WeCantSpell.Hunspell
                                 st.WriteChars(word.Slice(soldi + scpdPatternEntry.Pattern3.Length), i + scpdPatternEntry.Pattern2.Length);
 
                                 oldlen = len;
-                                len += scpdPatternEntry.Pattern.Length + scpdPatternEntry.Pattern2.Length + scpdPatternEntry.Pattern3.Length;
                                 oldcmin = cmin;
                                 oldcmax = cmax;
+
+                                len += scpdPatternEntry.Pattern.Length + scpdPatternEntry.Pattern2.Length + scpdPatternEntry.Pattern3.Length;
                                 cmin = Affix.CompoundMin;
                                 cmax = len - cmin + 1;
 
@@ -561,15 +568,14 @@ namespace WeCantSpell.Hunspell
                             if (i < st.BufferLength)
                             {
                                 ch = st[i];
-                                st[i] = '\0';
+                                st[i] = default;
                             }
                             else
                             {
                                 ch = default;
                             }
 
-                            ClearSuffix();
-                            ClearPrefix();
+                            ClearAffixes();
 
                             // FIRST WORD
 
@@ -579,19 +585,19 @@ namespace WeCantSpell.Hunspell
                                 var searchEntryWord = st.ToString();
 
                                 var searchEntryDetails = LookupDetails(searchEntryWord);
-                                if (searchEntryDetails.Length > 0)
+                                if (searchEntryDetails.Length != 0)
                                 {
                                     var rvDetail = searchEntryDetails[0];
 
                                     // forbid dictionary stems with COMPOUNDFORBIDFLAG in
                                     // compound words, overriding the effect of COMPOUNDPERMITFLAG
-                                    if (rvDetail != null && rvDetail.ContainsFlag(Affix.CompoundForbidFlag) && !huMovRule)
-                                    {
-                                        continue;
-                                    }
-
                                     if (rvDetail != null && !huMovRule)
                                     {
+                                        if (rvDetail.ContainsFlag(Affix.CompoundForbidFlag))
+                                        {
+                                            continue;
+                                        }
+
                                         if (onlycpdrule)
                                         {
                                             if (!Affix.CompoundRules.IsEmpty && (wordNum == 0 || words != null))
@@ -654,7 +660,7 @@ namespace WeCantSpell.Hunspell
                                     rv = PrefixCheck(stAffix, movCompoundOptions, Affix.CompoundFlag);
                                     if (rv == null)
                                     {
-                                        rv = SuffixCheck(stAffix, 0, default, new FlagValue(), Affix.CompoundFlag, movCompoundOptions);
+                                        rv = SuffixCheck(stAffix, 0, default, default, Affix.CompoundFlag, movCompoundOptions);
                                         if (rv == null && Affix.CompoundMoreSuffixes)
                                         {
                                             rv = SuffixCheckTwoSfx(stAffix, 0, default, Affix.CompoundFlag);
@@ -891,7 +897,7 @@ namespace WeCantSpell.Hunspell
                                     }
                                     if (SuffixExtra)
                                     {
-                                        numSyllable -= 1;
+                                        numSyllable--;
                                     }
 
                                     // + 1 word, if syllable number of the prefix > 1 (hungarian convention)
@@ -1041,8 +1047,7 @@ namespace WeCantSpell.Hunspell
 
                                         if (rv == null && Affix.CompoundEnd.HasValue && !onlycpdrule)
                                         {
-                                            ClearSuffix();
-                                            ClearPrefix();
+                                            ClearAffixes();
                                             rv = AffixCheck(wordSubI, Affix.CompoundEnd, CompoundOptions.End);
                                         }
 
@@ -1355,10 +1360,7 @@ namespace WeCantSpell.Hunspell
             private WordEntry AffixCheck(string word, FlagValue needFlag, CompoundOptions inCompound)
             {
 #if DEBUG
-                if (word == null)
-                {
-                    throw new ArgumentNullException(nameof(word));
-                }
+                if (word == null) throw new ArgumentNullException(nameof(word));
 #endif
                 // check all prefixes (also crossed with suffixes if allowed)
                 var rv = PrefixCheck(word, inCompound, needFlag);
@@ -1369,8 +1371,7 @@ namespace WeCantSpell.Hunspell
 
                     if (Affix.ContClasses.HasItems)
                     {
-                        ClearSuffix();
-                        ClearPrefix();
+                        ClearAffixes();
 
                         if (rv == null)
                         {
